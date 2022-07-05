@@ -14,7 +14,7 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
-from sops_anomaly.models.model import BaseDetector
+from sops_anomaly.models.base_model import BaseDetector
 
 
 class _SamplingLayer(layers.Layer):

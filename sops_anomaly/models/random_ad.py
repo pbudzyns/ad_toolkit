@@ -1,27 +1,36 @@
 from typing import List, Union
 
 import numpy as np
-from nab.detectors.base import AnomalyDetector
+import pandas as pd
+# from nab.detectors.base import AnomalyDetector
 
-from sops_anomaly.models.model import BaseDetector
+from sops_anomaly.models.base_model import BaseDetector
 
 
 class RandomDetector(BaseDetector):
 
-    def detect(self, data: np.ndarray) -> Union[List[int], np.ndarray]:
+    def detect(self, data: pd.DataFrame) -> np.ndarray:
         return self.predict(data)
 
-    def train(self, train_data: np.ndarray, epochs: int = 0):
+    def train(self, train_data: pd.DataFrame) -> None:
         pass
 
-    def predict(self, data: np.ndarray):
-        return np.random.random(data.shape)
+    def predict(self, data: pd.DataFrame) -> np.ndarray:
+        return np.random.random(len(data))
 
 
-class RandomDetectorNab(RandomDetector, AnomalyDetector):
+# class RandomDetectorNab(RandomDetector, AnomalyDetector):
+#
+#     def initialize(self):
+#         pass
+#
+#     def handleRecord(self, inputData):
+#         return [self.predict(inputData)]
 
-    def initialize(self):
-        pass
 
-    def handleRecord(self, inputData):
-        return [self.predict(inputData)]
+if __name__ == '__main__':
+    data = pd.DataFrame(data=np.zeros((300, 20)))
+    print(data)
+    model = RandomDetector()
+    model.train(data)
+    print(model.predict(data))

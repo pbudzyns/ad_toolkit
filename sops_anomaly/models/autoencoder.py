@@ -1,130 +1,144 @@
-from typing import List, Union
+from typing import List, Optional
 
 import numpy as np
-from tensorflow import keras
-from tensorflow.keras import layers
+import pandas as pd
+import torch
+from torch import nn
+from torch.nn import functional as F
 
-from sops_anomaly.models.model import BaseDetector
+from sops_anomaly.models.base_model import BaseDetector
+from sops_anomaly.utils import window_data
+
+
+class _AEModel(nn.Module):
+    def __init__(self, input_size: int, latent_size: int):
+        super().__init__()
+        self.encoder = self._get_encoder(input_size, latent_size)
+        self.decoder = self._get_decoder(latent_size, input_size)
+
+    def _get_encoder(self, input_size: int, output_size: int):
+        encoder = nn.Sequential(
+            nn.Linear(input_size, 500),
+            nn.ReLU(),
+            nn.Linear(500, 200),
+            nn.ReLU(),
+            nn.Linear(200, output_size)
+        )
+        return encoder
+
+    def _get_decoder(self, input_size: int, output_size: int):
+        decoder = nn.Sequential(
+            nn.Linear(input_size, 200),
+            nn.ReLU(),
+            nn.Linear(200, 500),
+            nn.ReLU(),
+            nn.Linear(500, output_size)
+        )
+        return decoder
+
+    def forward(self, data: torch.Tensor) -> torch.Tensor:
+        encoded = self.encoder(data)
+        decoded = self.decoder(encoded)
+        return decoded
 
 
 class AutoEncoder(BaseDetector):
 
     def __init__(
         self,
-        input_size: int = 100,
-        activation: str = "relu",
+        window_size: int,
+        latent_size: int = 100,
         threshold: float = 0.8,
-    ):
-        """Base auto-encoder anomaly detection model detecting anomalous
-        examples by reconstruction error threshold.
-
-        Implementation based on:
-            - https://keras.io/examples/timeseries/timeseries_anomaly_detection
-
-        :param input_size:
-        :param activation:
-        :param threshold:
-        """
-        self.model = None
-        self._activation = activation
-        self._input_size = input_size
+    ) -> None:
+        self.model: Optional[nn.Module] = None
+        self._window_size = window_size
+        self._latent_size = latent_size
         self._threshold = threshold
-        self._real_threshold = None
+        self._max_error: float = 0.0
 
-    def _create_model(self) -> keras.Model:
-        """Construct auto-encoder model using keras backend. This is a sample
-        model that does not allow for much parametrization.
+    def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        return window_data(data, self._window_size)
 
-        :return: auto-encoder model
-        """
-        model = keras.Sequential(
-            [
-                layers.Input(shape=(self._input_size, 1)),
-                layers.Conv1D(
-                    filters=32, kernel_size=7, padding="same", strides=2,
-                    activation=self._activation,
-                ),
-                layers.Dropout(rate=0.2),
-                layers.Conv1D(
-                    filters=16, kernel_size=7, padding="same", strides=2,
-                    activation=self._activation,
-                ),
-                layers.Conv1DTranspose(
-                    filters=16, kernel_size=7, padding="same", strides=2,
-                    activation=self._activation,
-                ),
-                layers.Dropout(rate=0.2),
-                layers.Conv1DTranspose(
-                    filters=32, kernel_size=7, padding="same", strides=2,
-                    activation=self._activation,
-                ),
-                layers.Conv1DTranspose(filters=1, kernel_size=7,
-                                       padding="same"),
-            ]
-        )
+    def _data_to_tensors(self, data: pd.DataFrame) -> List[torch.Tensor]:
+        tensors = [torch.Tensor(row) for _, row in data.iterrows()]
+        return tensors
 
-        return model
+    def _compute_threshold(self, data: List[torch.Tensor]) -> float:
+        scores = []
+        self.model.eval()
+        with torch.no_grad():
+            for sample in data:
+                rec = self.model.forward(sample)
+                scores.append(F.mse_loss(rec, sample).item())
+        scores = np.array(scores)
+        return np.max(scores)
 
-    def _transform_data(self, data: np.ndarray) -> np.ndarray:
-        # normalize the data.
-        data = (data - np.mean(data)) / np.std(data)
-        # construct sliding windows.
-        output = []
-        for i in range(len(data) - self._input_size + 1):
-            output.append(data[i: (i + self._input_size)])
-        return np.stack(output)
+    def train(self, train_data: pd.DataFrame, epochs: int = 20) -> None:
+        if self._window_size > 1:
+            train_data = self._transform_data(train_data)
+        input_size = len(train_data.iloc[0])
+        train_data = self._data_to_tensors(train_data)
 
-    def train(self, train_data: np.ndarray, epochs: int = 50):
-        # train_data = self._transform_data(data)
-        self.model = self._create_model()
-        self.model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=0.001),
-            loss="mse",
-        )
-        history = self.model.fit(
-            train_data,
-            train_data,
-            epochs=epochs,
-            batch_size=128,
-            validation_split=0.1,
-            callbacks=[
-                keras.callbacks.EarlyStopping(
-                    monitor="val_loss", patience=5, mode="min")
-            ],
-        )
+        self.model = _AEModel(input_size=input_size, latent_size=self._latent_size)
+        self.model.train()
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
 
-        reconstructed = self.model.predict(train_data)
-        _data = train_data.reshape(reconstructed.shape)
+        for epoch in range(epochs):
+            epoch_loss = 0
+            for sample in train_data:
+                optimizer.zero_grad()
+                reconstructed = self.model.forward(sample)
+                loss = F.mse_loss(reconstructed, sample)
+                epoch_loss += loss.item()
+                loss.backward()
+                optimizer.step()
+            print(f"Epoch {epoch} loss: {epoch_loss/len(train_data)}")
 
-        reconstruction_error = np.mean(np.abs(_data - reconstructed), axis=1)
-        self._real_threshold = np.max(reconstruction_error) * self._threshold
+        self._max_error = self._compute_threshold(train_data)
 
-        return history
+    def predict(self, data: pd.DataFrame) -> np.ndarray:
+        if self._window_size > 1:
+            input_data = self._transform_data(data)
+            input_data = self._data_to_tensors(input_data)
+        else:
+            input_data = self._data_to_tensors(data)
 
-    def predict(self, x: np.ndarray) -> np.ndarray:
-        # _data = self._transform_data(x)
-        _data = x
-        reconstructed = self.model.predict(_data)
+        scores = []
+        self.model.eval()
+        with torch.no_grad():
+            for sample in input_data:
+                rec = self.model.forward(sample)
+                scores.append(F.mse_loss(rec, sample).item())
+        return np.array(scores)
 
-        _data = _data.reshape(reconstructed.shape)
-        reconstruction_error = np.mean(np.abs(_data - reconstructed), axis=1)
+    def detect(self, data: pd.DataFrame) -> np.ndarray:
+        scores = self.predict(data)
+        return (scores >= self._threshold * self._max_error).astype(np.int)
 
-        # anomalies = reconstruction_error.reshape((-1)) / _real_threshold
-        scores = reconstruction_error.reshape((-1))
-        scores[scores > self._real_threshold] = self._real_threshold
-        scores /= self._real_threshold
 
-        # results = np.zeros_like(x.flatten())
-        # results[:len(results) - self._input_size + 1] = scores
-        return scores
+if __name__ == '__main__':
+    # data1 = pd.DataFrame(data=[
+    #     np.arange(0, 10), np.arange(10, 20), np.arange(20, 30),
+    # ])
+    #
+    # data2 = pd.DataFrame(data=np.arange(30).reshape((30,1)))
+    # print(data1)
+    # print(data2)
+    # print(np.array(AutoEncoder(window_size=1)._transform_data(data1)))
+    # print(AutoEncoder(window_size=5)._transform_data(data2))
 
-    def detect(self, data: np.ndarray) -> Union[List[int], np.ndarray]:
-        anomalies = self.predict(data)
-        anomalies = anomalies >= 0.9
+    from sops_anomaly.datasets import MNIST
+    mnist = MNIST()
+    x = mnist.get_train_samples(n_samples=100)
+    test_x, test_y = mnist.get_test_samples(n_samples=50)
+    print(test_x, test_y)
 
-        # anomalous_data_indices = []
-        # for data_idx in range(self._input_size - 1, len(data) - self._input_size + 1):
-        #     if np.all(anomalies[data_idx - self._input_size + 1: data_idx]):
-        #         anomalous_data_indices.append(data_idx)
+    ae = AutoEncoder(window_size=1)
+    ae.train(x, epochs=10)
 
-        return anomalies
+    pred_y = ae.detect(test_x)
+    print(pred_y, test_y)
+    from sops_anomaly.evaluation import Result
+    res = Result(np.array(pred_y), np.array(test_y))
+    print(res.accuracy, res.f1)
+

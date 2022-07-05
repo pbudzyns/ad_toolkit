@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from sops_anomaly.models.model import BaseDetector
+from sops_anomaly.models.base_model import BaseDetector
 
 
 class Visualizer:

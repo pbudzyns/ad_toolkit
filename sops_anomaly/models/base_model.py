@@ -1,6 +1,7 @@
 import abc
 from typing import List, Union
 
+import pandas as pd
 import numpy as np
 
 
@@ -10,7 +11,7 @@ class BaseDetector(abc.ABC):
     """
 
     @abc.abstractmethod
-    def train(self, train_data: np.ndarray, epochs: int):
+    def train(self, train_data: pd.DataFrame, epochs: int):
         """Train the model using `train_data`. Model takes raw data
         vector representing entire time series and have to perform
         the data transformation independently, including normalization
@@ -23,7 +24,7 @@ class BaseDetector(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def predict(self, data: np.ndarray) -> np.ndarray:
+    def predict(self, data: pd.DataFrame) -> np.ndarray:
         """Return raw model's output for the given `data`.
 
         :param data: Time series data.
@@ -32,7 +33,7 @@ class BaseDetector(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def detect(self, data: np.ndarray) -> Union[List[int], np.ndarray]:
+    def detect(self, data: pd.DataFrame) -> np.ndarray:
         """Detect anomalies in the provided data using trained model.
 
         :param data: Time series data.
