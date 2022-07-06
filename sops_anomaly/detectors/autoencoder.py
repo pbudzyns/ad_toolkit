@@ -6,17 +6,18 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from sops_anomaly.models.base_model import BaseDetector
+from sops_anomaly.detectors.base_detector import BaseDetector
 from sops_anomaly.utils import window_data
 
 
 class _AEModel(nn.Module):
-    def __init__(self, input_size: int, latent_size: int):
+    def __init__(self, input_size: int, latent_size: int) -> None:
         super().__init__()
-        self.encoder = self._get_encoder(input_size, latent_size)
-        self.decoder = self._get_decoder(latent_size, input_size)
+        self.encoder: nn.Module = self._get_encoder(input_size, latent_size)
+        self.decoder: nn.Module = self._get_decoder(latent_size, input_size)
 
-    def _get_encoder(self, input_size: int, output_size: int):
+    @classmethod
+    def _get_encoder(cls, input_size: int, output_size: int) -> nn.Module:
         encoder = nn.Sequential(
             nn.Linear(input_size, 500),
             nn.ReLU(),
@@ -26,7 +27,8 @@ class _AEModel(nn.Module):
         )
         return encoder
 
-    def _get_decoder(self, input_size: int, output_size: int):
+    @classmethod
+    def _get_decoder(cls, input_size: int, output_size: int) -> nn.Module:
         decoder = nn.Sequential(
             nn.Linear(input_size, 200),
             nn.ReLU(),
@@ -51,15 +53,16 @@ class AutoEncoder(BaseDetector):
         threshold: float = 0.8,
     ) -> None:
         self.model: Optional[nn.Module] = None
-        self._window_size = window_size
-        self._latent_size = latent_size
-        self._threshold = threshold
+        self._window_size: int = window_size
+        self._latent_size: int = latent_size
+        self._threshold: float = threshold
         self._max_error: float = 0.0
 
     def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
         return window_data(data, self._window_size)
 
-    def _data_to_tensors(self, data: pd.DataFrame) -> List[torch.Tensor]:
+    @classmethod
+    def _data_to_tensors(cls, data: pd.DataFrame) -> List[torch.Tensor]:
         tensors = [torch.Tensor(row) for _, row in data.iterrows()]
         return tensors
 
@@ -113,7 +116,7 @@ class AutoEncoder(BaseDetector):
 
     def detect(self, data: pd.DataFrame) -> np.ndarray:
         scores = self.predict(data)
-        return (scores >= self._threshold * self._max_error).astype(np.int)
+        return (scores >= self._threshold * self._max_error).astype(np.int32)
 
 
 if __name__ == '__main__':

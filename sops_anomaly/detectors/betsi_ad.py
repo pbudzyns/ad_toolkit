@@ -10,7 +10,7 @@ import betsi.preprocessors
 from nab.detectors.base import AnomalyDetector
 import numpy as np
 
-from sops_anomaly.models.base_model import BaseDetector
+from sops_anomaly.detectors.base_detector import BaseDetector
 
 
 class Betsi(BaseDetector):

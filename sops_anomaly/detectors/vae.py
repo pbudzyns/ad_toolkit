@@ -1,13 +1,13 @@
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from torch import nn
 from torch.nn import functional as F
-import torch.distributions
 import torch.optim
+import torch.distributions
 
-from sops_anomaly.models.base_model import BaseDetector
+from sops_anomaly.detectors.base_detector import BaseDetector
 from sops_anomaly.utils import window_data
 
 
@@ -18,18 +18,18 @@ class _VAE(nn.Module):
     """
     def __init__(self, input_size: int, latent_size: int):
         super(_VAE, self).__init__()
-        self._input_size = input_size
-        self._latent_size = latent_size
-        self.encoder = self._get_encoder()
-        self.decoder = self._get_decoder()
-        self.prior = torch.distributions.Normal(0, 1)
+        self._input_size: int = input_size
+        self._latent_size: int = latent_size
+        self.encoder: nn.Module = self._get_encoder()
+        self.decoder: nn.Module = self._get_decoder()
+        self.prior: torch.distributions.Distribution = (
+            torch.distributions.Normal(0, 1))
 
-        self.layer_mu = nn.Linear(100, latent_size)
-        self.layer_sigma = nn.Linear(100, latent_size)
+        self.layer_mu: nn.Module = nn.Linear(100, latent_size)
+        self.layer_sigma: nn.Module = nn.Linear(100, latent_size)
+        self.decoder_input: nn.Module = nn.Linear(latent_size, 100)
 
-        self.decoder_input = nn.Linear(latent_size, 100)
-
-    def _get_encoder(self):
+    def _get_encoder(self) -> nn.Module:
         encoder = nn.Sequential(
             nn.Linear(self._input_size, 500),
             nn.ReLU(),
@@ -39,7 +39,7 @@ class _VAE(nn.Module):
         )
         return encoder
 
-    def _get_decoder(self):
+    def _get_decoder(self) -> nn.Module:
         decoder = nn.Sequential(
             nn.Linear(100, 200),
             nn.ReLU(),
@@ -49,7 +49,7 @@ class _VAE(nn.Module):
         )
         return decoder
 
-    def encode(self, x):
+    def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         encoded = self.encoder(x)
 
         mu = self.layer_mu(encoded)
@@ -57,22 +57,30 @@ class _VAE(nn.Module):
 
         return mu, log_var
 
-    def decode(self, x):
+    def decode(self, x: torch.Tensor) -> torch.Tensor:
         x = self.decoder_input(x)
         return self.decoder(x)
 
-    def forward(self, x):
+    def forward(
+        self, x: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, log_var = self.encode(x)
         z = self.reparametrize(mu, log_var)
         x_hat = self.decode(z)
         return x_hat, x, mu, log_var
 
-    def reparametrize(self, mu, log_var):
+    def reparametrize(
+        self, mu: torch.Tensor, log_var: torch.Tensor,
+    ) -> torch.Tensor:
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(std)
         return eps * std + mu
 
-    def loss_function(self, model_outputs):
+    def loss_function(
+        self,
+        model_outputs: Tuple[
+            torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
+    ) -> torch.Tensor:
         (x_hat, x, mu, log_var) = model_outputs
 
         reconstruction_loss = F.mse_loss(x_hat, x)
@@ -85,10 +93,10 @@ class _VAE(nn.Module):
         total_loss = reconstruction_loss + kl_loss
         return total_loss
 
-    def sample(self):
+    def sample(self) -> np.ndarray:
         z = torch.randn(self._latent_size)
         smpl = self.decode(z)
-        return smpl
+        return smpl.detach().numpy()
 
 
 class VariationalAutoEncoder(BaseDetector):
@@ -145,12 +153,16 @@ class VariationalAutoEncoder(BaseDetector):
         epochs: int = 30,
         # batch_size: int = 64,
         learning_rate: float = 1e-4,
-    ):
+    ) -> None:
         train_data = self._transform_data(train_data)
         train_data = self._data_to_tensors(train_data)
 
-        self.model = _VAE(input_size=len(train_data[0]), latent_size=self._latent_size)
+        self.model = _VAE(
+            input_size=len(train_data[0]),
+            latent_size=self._latent_size,
+        )
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+
         self.model.train()
         for epoch in range(epochs):
             epoch_loss = 0
@@ -165,7 +177,7 @@ class VariationalAutoEncoder(BaseDetector):
 
         self._max_error = self._compute_threshold(train_data)
 
-    def sample(self):
+    def sample(self) -> np.ndarray:
         return self.model.sample()
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
@@ -186,7 +198,7 @@ class VariationalAutoEncoder(BaseDetector):
 
     def detect(self, data: pd.DataFrame) -> np.ndarray:
         scores = self.predict(data)
-        return (scores >= self._threshold * self._max_error).astype(np.int)
+        return (scores >= self._threshold * self._max_error).astype(np.int32)
 
 
 if __name__ == '__main__':
@@ -208,7 +220,7 @@ if __name__ == '__main__':
     sample = vae.sample()
 
     import matplotlib.pyplot as plt
-    plt.imshow(sample.detach().numpy().reshape((28,28)), cmap='gray_r')
+    plt.imshow(sample.reshape((28,28)), cmap='gray_r')
     plt.show()
 
     x_test, y_test = mnist.get_test_samples(n_samples=100)

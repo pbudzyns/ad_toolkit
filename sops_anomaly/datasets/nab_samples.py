@@ -1,4 +1,5 @@
-import numpy as np
+from typing import Tuple
+
 import pandas as pd
 
 from sops_anomaly.datasets.dataset import BaseDataset
@@ -21,3 +22,11 @@ class NabDataset(BaseDataset):
             self._data_url, parse_dates=True, index_col="timestamp"
         )
         self._data = data
+
+    def get_train_samples(self, n_samples: int) -> pd.DataFrame:
+        pass
+
+    def get_test_samples(
+        self, n_samples: int,
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        pass

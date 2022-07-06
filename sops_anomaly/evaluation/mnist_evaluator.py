@@ -1,6 +1,6 @@
 from sops_anomaly.datasets import MNIST
 from sops_anomaly.evaluation.result import Result
-from sops_anomaly.models import BaseDetector
+from sops_anomaly.detectors import BaseDetector
 
 
 def evaluate_model_on_mnist(
@@ -27,7 +27,7 @@ def evaluate_model_on_mnist(
 
 
 if __name__ == '__main__':
-    from sops_anomaly.models import AutoEncoder
+    from sops_anomaly.detectors import AutoEncoder
     model = AutoEncoder(input_size=MNIST.sample_size(), threshold=0.9)
 
     results = evaluate_model_on_mnist(

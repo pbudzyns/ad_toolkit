@@ -6,7 +6,7 @@ import numpy as np
 from nab.detectors.base import AnomalyDetector
 from nab.runner import Runner
 
-from sops_anomaly.models import BaseDetector, RandomDetector, AutoEncoder
+from sops_anomaly.detectors import BaseDetector, RandomDetector, AutoEncoder
 
 
 # def nab_evaluator(anomaly_detector: BaseModel):

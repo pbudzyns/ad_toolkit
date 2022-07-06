@@ -36,12 +36,10 @@ class MNIST(BaseDataset):
         :return:
         """
         _, _, x_test, y_test = self.data
-        print("having xtest ytest")
         x_normal, x_anomaly = (
             x_test.loc[~self._test_mask],
             x_test.loc[self._test_mask],
         )
-        print("having xnomal, xanmoaly")
 
         x_normal = x_normal.sample(n=int(0.5*n_samples))
         x_anomaly = x_normal.sample(n=int(0.5*n_samples))
@@ -58,9 +56,9 @@ class MNIST(BaseDataset):
         # Transform the labels.
         y_train, y_test = (
             (y_train == self._anomaly_class), (y_test == self._anomaly_class))
-        # Remove anomalies from th training data.
-        x_train = x_train[~y_train]
-        y_train = y_train[~y_train]
+        # # Remove anomalies from th training data.
+        # x_train = x_train[~y_train]
+        # y_train = y_train[~y_train]
         # Normalize the data and reshape samples to 1D vectors.
         x_train, x_test = x_train / 255, x_test / 255
         x_train, x_test = x_train.reshape(-1, 784), x_test.reshape(-1, 784)

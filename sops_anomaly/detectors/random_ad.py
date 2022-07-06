@@ -1,16 +1,15 @@
-from typing import List, Union
-
 import numpy as np
 import pandas as pd
-# from nab.detectors.base import AnomalyDetector
 
-from sops_anomaly.models.base_model import BaseDetector
+from sops_anomaly.detectors.base_detector import BaseDetector
 
 
 class RandomDetector(BaseDetector):
 
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
-        return self.predict(data)
+    def __init__(self) -> None:
+        """Dummy anomaly detector that returns random results.
+        """
+        super(RandomDetector, self).__init__()
 
     def train(self, train_data: pd.DataFrame) -> None:
         pass
@@ -18,14 +17,8 @@ class RandomDetector(BaseDetector):
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         return np.random.random(len(data))
 
-
-# class RandomDetectorNab(RandomDetector, AnomalyDetector):
-#
-#     def initialize(self):
-#         pass
-#
-#     def handleRecord(self, inputData):
-#         return [self.predict(inputData)]
+    def detect(self, data: pd.DataFrame) -> np.ndarray:
+        return (self.predict(data) > 0.5).astype(np.int32)
 
 
 if __name__ == '__main__':

@@ -13,7 +13,7 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tfsnippet.modules import Sequential
 
-from sops_anomaly.models.base_model import BaseDetector
+from sops_anomaly.detectors.base_detector import BaseDetector
 from sops_anomaly.utils import window_data
 
 
