@@ -105,8 +105,8 @@ class VariationalAutoEncoder(BaseDetector):
         based on reconstruction probability score.
 
         Reference:
-            - "Variational auto-encoder based anomaly detection using
-            reconstruction probability" J.An, S.Cho.
+          - "Variational auto-encoder based anomaly detection using
+          reconstruction probability" J.An, S.Cho.
 
         :param input_size:
         :param latent_size:

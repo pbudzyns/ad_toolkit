@@ -1,5 +1,6 @@
 venv/
 .idea/
 nab_files/
+kdd_cup_1999/
 *.pyc
 
