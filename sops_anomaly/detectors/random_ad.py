@@ -19,11 +19,3 @@ class RandomDetector(BaseDetector):
 
     def detect(self, data: pd.DataFrame) -> np.ndarray:
         return (self.predict(data) > 0.5).astype(np.int32)
-
-
-if __name__ == '__main__':
-    data = pd.DataFrame(data=np.zeros((300, 20)))
-    print(data)
-    model = RandomDetector()
-    model.train(data)
-    print(model.predict(data))

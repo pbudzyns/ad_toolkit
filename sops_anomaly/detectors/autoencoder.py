@@ -107,7 +107,8 @@ class AutoEncoder(BaseDetector):
         else:
             input_data = self._data_to_tensors(data)
 
-        scores = []
+        # Zero padding to match input length.
+        scores = [0] * (self._window_size - 1)
         self.model.eval()
         with torch.no_grad():
             for sample in input_data:

@@ -183,7 +183,7 @@ class VariationalAutoEncoder(BaseDetector):
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         data = self._transform_data(data)
         data = self._data_to_tensors(data)
-        scores = []
+        scores = [0] * (self._window_size - 1) # To match input length.
         self.model.eval()
         with torch.no_grad():
             for x in data:

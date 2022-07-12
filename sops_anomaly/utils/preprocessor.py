@@ -10,5 +10,5 @@ def window_data(data: pd.DataFrame, window_size: int) -> pd.DataFrame:
         windowed_data.append(
             np.array(data[i:i + window_size]).flatten()
         )
-    index = np.array(data.index)[window_size:]
+    index = data.index[window_size-1:]
     return pd.DataFrame(data=windowed_data, index=index)
