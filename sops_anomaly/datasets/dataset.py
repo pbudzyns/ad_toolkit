@@ -1,5 +1,5 @@
 import abc
-from typing import Tuple
+from typing import Optional, Tuple
 
 import pandas as pd
 
@@ -16,13 +16,18 @@ class BaseDataset(abc.ABC):
         return self._data
 
     @abc.abstractmethod
-    def get_train_samples(self, n_samples: int) -> pd.DataFrame:
+    def load(self) -> None:
+        pass
+
+    @abc.abstractmethod
+    def get_train_samples(
+            self, n_samples: Optional[int] = None) -> pd.DataFrame:
         pass
 
     @abc.abstractmethod
     def get_test_samples(
-        self, n_samples: int,
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        self, n_samples: Optional[int] = None,
+    ) -> Tuple[pd.DataFrame, pd.Series]:
         pass
 
     @abc.abstractmethod
