@@ -7,15 +7,14 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
-from sops_anomaly.datasets.dataset import BaseDataset
+from sops_anomaly.datasets.dataset import LabeledDataset
 
 
-class KddCup(BaseDataset):
+class KddCup(LabeledDataset):
 
     def __init__(
         self,
         full_dataset: bool = False,
-        semi_supervised: bool = False,
     ) -> None:
         """KDD Cup 1999 dataset containing network intrusion events.
 
@@ -23,7 +22,6 @@ class KddCup(BaseDataset):
          - http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html
 
         :param full_dataset:
-        :param semi_supervised:
         """
 
         super(KddCup, self).__init__()
@@ -34,19 +32,20 @@ class KddCup(BaseDataset):
             self._gz_filename = "kddcup.data_10_percent.gz"
 
         url_root: str = "http://kdd.ics.uci.edu/databases/kddcup99/"
-        self._semi_supervised: bool = semi_supervised
         self._names_filename: str = "kddcup.names"
         self._label_name: str = "status"
         self._data_url: str = url_root + self._gz_filename
         self._names_url: str = url_root + self._names_filename
         self._data_file: Optional[pathlib.Path] = None
 
+    def load(self) -> None:
+        self._load()
+
     def _load(self) -> None:
         data, types = self._load_data_from_url()
         self._mark_attacks(data)
         self._encode_categorical(data, types)
 
-        # TODO: prepare filtering for semi-supervised mode
         labels = data.pop('status')
         x_train, x_test, y_train, y_test = train_test_split(
             data.index, labels, train_size=0.8)
@@ -62,6 +61,9 @@ class KddCup(BaseDataset):
             data_filename, names_filename = self._download_dataset(tempdir)
             names, types = self._extract_names(names_filename)
             data = pd.read_csv(data_filename, header=0, names=names)
+
+        data[self._label_name] = (
+            data[self._label_name].map(lambda x: x.rstrip('.')))
         return data, types
 
     def _mark_attacks(self, data: pd.DataFrame) -> None:
@@ -72,11 +74,12 @@ class KddCup(BaseDataset):
         :return:
         """
         new_labels = []
+        print(set(data[self._label_name]))
         for row in data[self._label_name]:
             if row != "normal":
-                new_labels.append("anomaly")
+                new_labels.append(1)
             else:
-                new_labels.append(row)
+                new_labels.append(0)
         data[self._label_name] = new_labels
 
     @classmethod
@@ -136,9 +139,3 @@ class KddCup(BaseDataset):
         with data_filename.open("wb") as f:
             r = requests.get(data_url)
             f.write(r.content)
-
-
-if __name__ == '__main__':
-    kdd = KddCup()
-    a = kdd.data
-    print(a)

@@ -11,12 +11,12 @@ def mnist():
     return mnist
 
 
-def test_mnist_loads_data(mnist):
+def test_mnist_loads_data(mnist: MNIST):
     data = mnist.data
     assert data is not None
 
 
-def test_mnist_data_returns_dataframes(mnist):
+def test_mnist_data_returns_dataframes(mnist: MNIST):
     x_train, y_train, x_test, y_test = mnist.data
     assert isinstance(x_train, pd.DataFrame)
     assert isinstance(x_test, pd.DataFrame)
@@ -35,7 +35,7 @@ def test_mnist_anomaly_classes(cls):
 
 
 @pytest.mark.parametrize("n_samples", (None, 10, 100, 1000, 10e9))
-def test_mnist_get_train_samples(mnist, n_samples):
+def test_mnist_get_train_samples(mnist: MNIST, n_samples):
     total_samples = len(mnist.data[0])
     x_train = mnist.get_train_samples(n_samples=n_samples)
     if n_samples is None or n_samples > total_samples:
@@ -45,7 +45,7 @@ def test_mnist_get_train_samples(mnist, n_samples):
 
 
 @pytest.mark.parametrize("n_samples", (None, 10, 100, 1000, 10e9))
-def test_mnist_get_test_samples(mnist, n_samples):
+def test_mnist_get_test_samples(mnist: MNIST, n_samples):
     total_samples = len(mnist.data[2])
     x_test, y_test = mnist.get_test_samples(n_samples=n_samples)
     assert len(x_test) == len(y_test)
@@ -55,7 +55,7 @@ def test_mnist_get_test_samples(mnist, n_samples):
         assert len(x_test) == n_samples
 
 
-def test_mnist_test_set_balanced(mnist):
+def test_mnist_test_set_balanced(mnist: MNIST):
     _, y_test = mnist.get_test_samples(n_samples=1500)
     normal = y_test[y_test == 0]
     anomaly = y_test[y_test == 1]

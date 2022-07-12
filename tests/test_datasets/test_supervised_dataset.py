@@ -15,14 +15,6 @@ def dataset() -> SupervisedDataset:
     return dataset
 
 
-def test_sup_dataset_loads_data():
-    mnist = MNIST()
-    dataset = SupervisedDataset(mnist)
-    assert dataset.data is None
-    dataset.load()
-    assert dataset.data is not None
-
-
 def test_sup_dataset_returns_data(dataset: SupervisedDataset):
     data = dataset.data
     assert data is not None

@@ -2,12 +2,12 @@ from typing import Any, Optional, Tuple
 
 import pandas as pd
 
-from sops_anomaly.datasets.dataset import BaseDataset
+from sops_anomaly.datasets.dataset import BaseDataset, LabeledDataset
 
 
 class SupervisedDataset(BaseDataset):
 
-    def __init__(self, dataset: BaseDataset, anomaly_class: Any = 1) -> None:
+    def __init__(self, dataset: LabeledDataset, anomaly_class: Any = 1) -> None:
         """Dataset wrapper that filters out anomalous samples from
         training set.
 
@@ -24,6 +24,8 @@ class SupervisedDataset(BaseDataset):
 
     @property
     def data(self):
+        if self._data is None:
+            self._load()
         return self._data
 
     def _load(self) -> None:
