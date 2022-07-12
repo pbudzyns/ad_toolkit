@@ -16,7 +16,7 @@ class _VAE(nn.Module):
 
      TODO: allow for batch-processing
     """
-    def __init__(self, input_size: int, latent_size: int):
+    def __init__(self, input_size: int, latent_size: int) -> None:
         super(_VAE, self).__init__()
         self._input_size: int = input_size
         self._latent_size: int = latent_size
@@ -69,9 +69,9 @@ class _VAE(nn.Module):
         x_hat = self.decode(z)
         return x_hat, x, mu, log_var
 
+    @classmethod
     def reparametrize(
-        self, mu: torch.Tensor, log_var: torch.Tensor,
-    ) -> torch.Tensor:
+            cls, mu: torch.Tensor, log_var: torch.Tensor) -> torch.Tensor:
         std = torch.exp(0.5 * log_var)
         eps = torch.randn_like(std)
         return eps * std + mu

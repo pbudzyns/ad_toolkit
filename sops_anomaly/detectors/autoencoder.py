@@ -82,7 +82,8 @@ class AutoEncoder(BaseDetector):
         input_size = len(train_data.iloc[0])
         train_data = self._data_to_tensors(train_data)
 
-        self.model = _AEModel(input_size=input_size, latent_size=self._latent_size)
+        self.model = _AEModel(input_size=input_size,
+                              latent_size=self._latent_size)
         self.model.train()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
 

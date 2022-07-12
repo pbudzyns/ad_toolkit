@@ -1,7 +1,8 @@
 nab
 betsi-ml
-tensorflow<=2.0
+tensorflow
 torch
+scipy
 numpy
 matplotlib
 pandas

@@ -24,9 +24,9 @@ class NabDataset(BaseDataset):
         self._data = data
 
     def get_train_samples(self, n_samples: int) -> pd.DataFrame:
-        pass
+        return self.data
 
     def get_test_samples(
         self, n_samples: int,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        pass
+        return self._data, pd.DataFrame

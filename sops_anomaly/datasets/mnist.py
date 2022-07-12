@@ -11,7 +11,7 @@ from sops_anomaly.datasets.dataset import BaseDataset
 
 class MNIST(BaseDataset):
 
-    def __init__(self, anomaly_class: int = 0):
+    def __init__(self, anomaly_class: int = 0) -> None:
         super(MNIST, self).__init__()
         self._anomaly_class = anomaly_class
         self._data: Optional[Tuple[
