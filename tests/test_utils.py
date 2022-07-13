@@ -15,6 +15,38 @@ def time_stamps(n_steps):
     return stamps
 
 
+@pytest.mark.parametrize("data,window_size,expected_output", (
+    (
+        pd.DataFrame(),
+        10,
+        pd.DataFrame(),
+    ),
+    (
+        pd.DataFrame(data=[1, 2, 3]),
+        5,
+        pd.DataFrame(),
+    ),
+    (
+        pd.DataFrame(data=[[1, 2, 3, 4, 5]]),
+        1,
+        pd.DataFrame(data=[[1, 2, 3, 4, 5]]),
+    ),
+    (
+        pd.DataFrame(data=[1, 2, 3, 4]),
+        2,
+        pd.DataFrame(data=[[1, 2], [2, 3], [3, 4]], index=[1, 2, 3]),
+    ),
+    (
+        pd.DataFrame(data=[[1, 2], [3, 4], [5, 6], [7, 8]]),
+        3,
+        pd.DataFrame(data=[[1, 2, 3, 4, 5, 6], [3, 4, 5, 6, 7, 8]], index=[2, 3]),
+    ),
+))
+def test_window_data_expected_output(data, window_size, expected_output):
+    windowed_data = window_data(data, window_size)
+    assert windowed_data.compare(expected_output).empty
+
+
 @pytest.mark.parametrize("data", (
     pd.DataFrame(data=np.random.random((10,))),
     pd.DataFrame(data=np.random.random((10, 1))),
@@ -25,7 +57,7 @@ def time_stamps(n_steps):
     pd.DataFrame(data=np.random.random((500, 765))),
 ))
 @pytest.mark.parametrize("window_size", (1, 3, 10))
-def test_window_data(data, window_size):
+def test_window_data_output_shape(data, window_size):
     windowed_data = window_data(data, window_size)
     length = len(data) - window_size + 1
     width = data.shape[1] * window_size

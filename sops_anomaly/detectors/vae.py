@@ -1,3 +1,10 @@
+"""
+Variational auto-encoder anomaly detector.
+
+References:
+    - "Variational auto-encoder based anomaly detection using reconstruction
+     probability" J.An, S.Cho.
+"""
 from typing import Union, List, Optional, Tuple
 
 import numpy as np
@@ -112,11 +119,6 @@ class VariationalAutoEncoder(BaseDetector):
         Variational Auto-Encoder based anomaly detector. Detects anomalies
         based on reconstruction probability score.
 
-        Reference:
-          - "Variational auto-encoder based anomaly detection using
-          reconstruction probability" J.An, S.Cho.
-
-        :param input_size:
         :param latent_size:
         :param l_samples:
         :param threshold:

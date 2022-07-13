@@ -1,3 +1,10 @@
+"""
+Auto-encoder anomaly detector.
+
+References:
+    - "Variational auto-encoder based anomaly detection using reconstruction
+     probability" J.An, S.Cho.
+"""
 from typing import List, Optional
 
 import numpy as np
@@ -119,31 +126,3 @@ class AutoEncoder(BaseDetector):
     def detect(self, data: pd.DataFrame) -> np.ndarray:
         scores = self.predict(data)
         return (scores >= self._threshold * self._max_error).astype(np.int32)
-
-
-if __name__ == '__main__':
-    # data1 = pd.DataFrame(data=[
-    #     np.arange(0, 10), np.arange(10, 20), np.arange(20, 30),
-    # ])
-    #
-    # data2 = pd.DataFrame(data=np.arange(30).reshape((30,1)))
-    # print(data1)
-    # print(data2)
-    # print(np.array(AutoEncoder(window_size=1)._transform_data(data1)))
-    # print(AutoEncoder(window_size=5)._transform_data(data2))
-
-    from sops_anomaly.datasets import MNIST
-    mnist = MNIST()
-    x = mnist.get_train_samples(n_samples=100)
-    test_x, test_y = mnist.get_test_samples(n_samples=50)
-    print(test_x, test_y)
-
-    ae = AutoEncoder(window_size=1)
-    ae.train(x, epochs=10)
-
-    pred_y = ae.detect(test_x)
-    print(pred_y, test_y)
-    from sops_anomaly.evaluation import Result
-    res = Result(np.array(pred_y), np.array(test_y))
-    print(res.accuracy, res.f1)
-
