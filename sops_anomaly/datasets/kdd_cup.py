@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
-from sops_anomaly.datasets.dataset import LabeledDataset
+from sops_anomaly.datasets.labeled_dataset import LabeledDataset
 
 
 class KddCup(LabeledDataset):

@@ -1,13 +1,19 @@
 """
 Variational auto-encoder with MCMC.
 
+References:
+    - Xu, Haowen, et al. "Unsupervised anomaly detection via variational
+      auto-encoder for seasonal kpis in web applications."
+    -
+     https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/donut.py
 """
 from typing import Any, List, Tuple
 
 from donut import (
     Donut as _Donut,
     DonutTrainer as _DonutTrainer,
-    DonutPredictor as _DonutPredictor)
+    DonutPredictor as _DonutPredictor,
+)
 from donut.preprocessing import complete_timestamp, standardize_kpi
 import numpy as np
 import pandas as pd
@@ -17,7 +23,6 @@ from tensorflow.keras import layers
 from tfsnippet.modules import Sequential
 
 from sops_anomaly.detectors.base_detector import BaseDetector
-# from sops_anomaly.utils import window_data
 
 
 class Donut(BaseDetector):
@@ -109,14 +114,3 @@ class Donut(BaseDetector):
     def detect(self, data: pd.DataFrame) -> np.ndarray:
         # TODO: implement detection, check in the paper how is it done
         pass
-
-# if __name__ == '__main__':
-#     from sops_anomaly.datasets.nab_samples import NabDataset
-#
-#     dataset = NabDataset().data
-#     dataset['value2'] = dataset['value']
-#     model = Donut()
-#     model.train(dataset)
-#
-#     p = model.predict(dataset)
-#     print(p)

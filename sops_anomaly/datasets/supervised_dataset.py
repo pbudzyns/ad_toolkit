@@ -2,7 +2,8 @@ from typing import Any, Optional, Tuple
 
 import pandas as pd
 
-from sops_anomaly.datasets.dataset import BaseDataset, LabeledDataset
+from sops_anomaly.datasets.dataset import BaseDataset
+from sops_anomaly.datasets.labeled_dataset import LabeledDataset
 
 
 class SupervisedDataset(BaseDataset):

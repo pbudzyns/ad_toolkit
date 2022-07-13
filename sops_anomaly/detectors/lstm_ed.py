@@ -2,9 +2,8 @@
 Long-Short Term Memory based Encoder-Decoder anomaly detector.
 
 References:
-    - "LSTM-based Encoder-Decoder for Multi-sensor Anomaly Detection"
-      Malhotra et al.
-      https://www.researchgate.net/publication/304758073_LSTM-based_Encoder-Decoder_for_Multi-sensor_Anomaly_Detection
+    - Malhotra, Pankaj, et al. "LSTM-based encoder-decoder for multi-sensor
+      anomaly detection."
     - Implementation from DeepADoTS
       https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_enc_dec_axl.py
 """
@@ -18,7 +17,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, SubsetRandomSampler
 
 from sops_anomaly.detectors.base_detector import BaseDetector
-from sops_anomaly.detectors.lstm_ad import ErrorDistribution
+from sops_anomaly.detectors.error_distribution import ErrorDistribution
 
 
 class _LSTMEncoderDecoder(nn.Module):

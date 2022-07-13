@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from sops_anomaly.datasets.dataset import LabeledDataset
+from sops_anomaly.datasets.labeled_dataset import LabeledDataset
 
 
 class MNIST(LabeledDataset):

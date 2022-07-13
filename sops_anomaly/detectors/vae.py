@@ -2,8 +2,8 @@
 Variational auto-encoder anomaly detector.
 
 References:
-    - "Variational auto-encoder based anomaly detection using reconstruction
-     probability" J.An, S.Cho.
+    - An, Jinwon, and Sungzoon Cho. "Variational auto-encoder based anomaly
+      detection using reconstruction probability."
 """
 from typing import Union, List, Optional, Tuple
 
@@ -130,12 +130,12 @@ class VariationalAutoEncoder(BaseDetector):
         self._threshold: float = threshold
         self._max_error: float = 0.0
         self.model: Optional[nn.Module] = None
-        # self.model = _VAE(input_size, latent_size)
 
     def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
         return window_data(data, self._window_size)
 
-    def _data_to_tensors(self, data: pd.DataFrame) -> List[torch.Tensor]:
+    @classmethod
+    def _data_to_tensors(cls, data: pd.DataFrame) -> List[torch.Tensor]:
         tensors = [torch.Tensor(row) for _, row in data.iterrows()]
         return tensors
 
@@ -153,7 +153,6 @@ class VariationalAutoEncoder(BaseDetector):
         self,
         train_data: pd.DataFrame,
         epochs: int = 30,
-        # batch_size: int = 64,
         learning_rate: float = 1e-4,
     ) -> None:
         train_data = self._transform_data(train_data)
@@ -185,7 +184,7 @@ class VariationalAutoEncoder(BaseDetector):
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         data = self._transform_data(data)
         data = self._data_to_tensors(data)
-        scores = [0] * (self._window_size - 1) # To match input length.
+        scores = [0.0] * (self._window_size - 1)    # To match input length.
         self.model.eval()
         with torch.no_grad():
             for x in data:
@@ -201,48 +200,3 @@ class VariationalAutoEncoder(BaseDetector):
     def detect(self, data: pd.DataFrame) -> np.ndarray:
         scores = self.predict(data)
         return (scores >= self._threshold * self._max_error).astype(np.int32)
-
-
-if __name__ == '__main__':
-    from sops_anomaly.datasets import MNIST
-    mnist = MNIST(anomaly_class=7)
-    x = mnist.get_train_samples(n_samples=100)
-    # x, y = mnist.get_test_samples(n_samples=1000)
-
-    # model = VariationalAutoEncoder(input_size=MNIST.sample_size(), latent_size=10)
-    # model.train(x)
-    # batch_size = 10
-    # print(x[0])
-    # print(torch.Tensor(x[0]))
-    # x = [torch.Tensor(s) for s in x[-100:]]
-    # x = torch.Tensor(x)
-
-    vae = VariationalAutoEncoder(latent_size=10, l_samples=10, window_size=1)
-    vae.train(x)
-    sample = vae.sample()
-
-    import matplotlib.pyplot as plt
-    plt.imshow(sample.reshape((28,28)), cmap='gray_r')
-    plt.show()
-
-    x_test, y_test = mnist.get_test_samples(n_samples=100)
-    y_hat = vae.detect(x_test)
-    from sops_anomaly.evaluation import Result
-    result = Result(y_hat, np.array(y_test))
-    print(result.accuracy, result.f1)
-    # # plt.show()
-    # score = 0
-    # score_anomaly = 0
-    # for xx in x[:10]:
-    #     score += vae.predict(xx)
-    # an, _ = MNIST(anomaly_class=3).get_test_samples(n_samples=100)
-    # for xx in an[-10:]:
-    #     score_anomaly += vae.predict(torch.Tensor(xx))
-    #
-    # print("Normal:", score / 10)
-    # print("Anomalous: ", score_anomaly / 10)
-    # plt.subplot(1,2,1)
-    # plt.imshow(x[3].detach().numpy().reshape((28,28)), cmap='gray_r')
-    # plt.subplot(1,2,2)
-    # plt.imshow(an[-1].reshape((28, 28)), cmap='gray_r')
-    # plt.show()
