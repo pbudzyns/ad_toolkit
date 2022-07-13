@@ -22,9 +22,11 @@ from sops_anomaly.detectors.base_detector import BaseDetector
 
 class Donut(BaseDetector):
 
-    def __init__(self, window_size: int, latent_size: int = 10) -> None:
-        self._window_size: int = window_size
+    def __init__(self, x_dim: int = 120, latent_size: int = 10) -> None:
+        self.x_dim: int = x_dim
         self._latent_size: int = latent_size
+        self._means: List[float] = []
+        self._stds: List[float] = []
         self._models: List[_Donut] = []
         self._sessions: List[tf.Session] = []
         self._predictors: List[_DonutPredictor] = []
@@ -35,6 +37,8 @@ class Donut(BaseDetector):
         timestamp = np.array(train_data.index)
         for _, column in train_data.items():
             values = np.array(column)
+            session = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+
             labels = np.zeros_like(values, dtype=np.int32)
             timestamp, missing, (values, labels) = complete_timestamp(timestamp,
                                                                       (values,
@@ -44,19 +48,23 @@ class Donut(BaseDetector):
 
             model, model_vs = self._build_model()
             trainer = _DonutTrainer(
-                model=model, model_vs=model_vs, max_epoch=epochs)
-            predictor = _DonutPredictor(model)
-            session = tf.Session()
+                model=model,
+                model_vs=model_vs,
+                max_epoch=epochs,
+                missing_data_injection_rate=0.0,
+            )
+            # predictor = _DonutPredictor(model)
 
             with session.as_default():
-                trainer.fit(train_values, labels, missing, mean, std)
+                trainer.fit(train_values, labels, missing, mean, std, valid_portion=0.25)
 
             self._models.append(model)
-            self._predictors.append(predictor)
+            self._means.append(mean)
+            self._stds.append(std)
             self._sessions.append(session)
 
     def _build_model(self) -> Tuple[_Donut, Any]:
-        with tf.variable_scope(f'model{self._model_counter}') as model_vs:
+        with tf.variable_scope('model') as model_vs:
             model = _Donut(
                 h_for_p_x=Sequential([
                     layers.Dense(100,
@@ -74,25 +82,26 @@ class Donut(BaseDetector):
                                  kernel_regularizer=keras.regularizers.l2(0.001),
                                  activation=tf.nn.relu),
                 ]),
-                x_dims=self._window_size,
+                x_dims=self.x_dim,
                 z_dims=self._latent_size,
             )
-        self._model_counter += 1
         return model, model_vs
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         # data = window_data(data, self._window_size)
-        timestamp = np.array(data.index)
         results = []
         for i, (_, column) in enumerate(data.items()):
             values = np.array(column)
-            labels = np.zeros_like(values, dtype=np.int32)
-            timestamp, missing, (values, labels) = complete_timestamp(timestamp,
-                                                                      (values,
-                                                                       labels))
+
+            mean, std = self._means[i], self._stds[i]
+            values, _, _ = standardize_kpi(values, mean=mean, std=std)
+            missing = np.zeros_like(values, dtype=np.int32)
+
             session = self._sessions[i]
+            predictor = _DonutPredictor(model=self._models[i])
             with session.as_default():
-                scores = self._predictors[i].get_score(values, missing)
+                scores = predictor.get_score(values, missing)
+            scores = -np.exp(scores)
             results.append(scores)
 
         return np.mean(results, axis=0)
@@ -101,14 +110,13 @@ class Donut(BaseDetector):
         # TODO: implement detection, check in the paper how is it done
         pass
 
-
-if __name__ == '__main__':
-    from sops_anomaly.datasets.nab_samples import NabDataset
-
-    dataset = NabDataset().data
-    dataset['value2'] = dataset['value']
-    model = Donut()
-    model.train(dataset)
-
-    p = model.predict(dataset)
-    print(p)
+# if __name__ == '__main__':
+#     from sops_anomaly.datasets.nab_samples import NabDataset
+#
+#     dataset = NabDataset().data
+#     dataset['value2'] = dataset['value']
+#     model = Donut()
+#     model.train(dataset)
+#
+#     p = model.predict(dataset)
+#     print(p)

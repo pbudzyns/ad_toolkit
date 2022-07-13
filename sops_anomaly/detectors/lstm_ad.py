@@ -20,7 +20,7 @@ class LSTM(BaseDetector):
     def __init__(
         self,
         l_predictions: int = 10,
-        hidden_size: int = 32,
+        hidden_size: int = 400,
         threshold: float = 0.9,
     ) -> None:
         """
