@@ -1,3 +1,14 @@
+"""
+Time-series segmentation with auto-encoder.
+
+References:
+    - Lee, Wei-Han, et al. "Time series segmentation through automatic feature
+      learning."
+    - Boumghar, Redouane, et al. "Behaviour-based anomaly detection in
+      spacecraft using deep learning."
+    - https://gitlab.com/librespacefoundation/polaris/betsi
+
+"""
 import functools
 from typing import Callable, List, Optional
 
@@ -79,16 +90,6 @@ class AutoEncoderTSS(BaseDetector):
     @classmethod
     def _get_local_extrema(
             cls, distance_list: np.ndarray, threshold: float) -> List[int]:
-        """Local extrema finding algorithm based on implementation in
-        a library `betsi-ml`.
-
-        Source:
-            https://gitlab.com/librespacefoundation/polaris/betsi/-/blob/master/src/betsi/predictors.py#L47
-
-        :param distance_list:
-        :param threshold:
-        :return:
-        """
         events_at = []
         prev_distance = distance_list[0]
         curr_distance = distance_list[1]

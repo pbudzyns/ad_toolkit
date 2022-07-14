@@ -6,6 +6,7 @@ References:
       anomaly detection."
     - Implementation from DeepADoTS
       https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_enc_dec_axl.py
+
 """
 import functools
 from typing import List, Optional, Tuple
@@ -119,6 +120,7 @@ class LSTM_ED(BaseDetector):
         self._run_train_loop(epochs, optimizer, train_data_loader, verbose)
         # TODO: make dataset split
         self._fit_error_distribution(train_data_loader)
+        # TODO: add evaluation step to compute a threshold
 
     def _fit_error_distribution(self, data_loader: DataLoader) -> None:
         """Fit multivariate gaussian distribution to a given sample using

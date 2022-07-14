@@ -4,6 +4,7 @@ Variational auto-encoder anomaly detector.
 References:
     - An, Jinwon, and Sungzoon Cho. "Variational auto-encoder based anomaly
       detection using reconstruction probability."
+
 """
 from typing import Union, List, Optional, Tuple
 

@@ -4,8 +4,9 @@ Variational auto-encoder with MCMC.
 References:
     - Xu, Haowen, et al. "Unsupervised anomaly detection via variational
       auto-encoder for seasonal kpis in web applications."
-    -
+    - Implementation from DeepADoTS
      https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/donut.py
+
 """
 from typing import Any, List, Tuple
 

@@ -1,6 +1,12 @@
 """
 LSTM Anomaly Detector based on reconstruction error density.
 
+References:
+    - Malhotra, Pankaj, et al. "Long short term memory networks for anomaly
+      detection in time series."
+    - Implementation from DeepADoTS
+      https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_ad.py
+
 """
 import functools
 from typing import Optional, Tuple
@@ -136,6 +142,7 @@ class LSTM_AD(BaseDetector):
         self._train_model(train_data, train_targets, epochs, learning_rate,
                           verbose)
         self._fit_error_distribution(data)
+        # TODO: make another split to compute a threshold
 
     def _fit_error_distribution(self, data: pd.DataFrame):
         # Shape: (time_steps-l, d), (time_steps-2*l, d)
