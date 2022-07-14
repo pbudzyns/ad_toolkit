@@ -17,16 +17,20 @@ class BaseDataset(abc.ABC):
 
     @abc.abstractmethod
     def load(self) -> None:
+        """To be implemented."""
         pass
 
     @abc.abstractmethod
     def get_train_samples(self) -> pd.DataFrame:
+        """To be implemented."""
         pass
 
     @abc.abstractmethod
     def get_test_samples(self) -> Tuple[pd.DataFrame, pd.Series]:
+        """To be implemented."""
         pass
 
     @abc.abstractmethod
     def _load(self):
+        """To be implemented."""
         pass

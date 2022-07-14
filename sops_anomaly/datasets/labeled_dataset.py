@@ -10,14 +10,21 @@ class LabeledDataset(BaseDataset, abc.ABC):
 
     @abc.abstractmethod
     def load(self) -> None:
+        """To be implemented."""
         pass
 
     @abc.abstractmethod
     def _load(self):
+        """To be implemented."""
         pass
 
     def get_train_samples(
             self, n_samples: Optional[int] = None) -> pd.DataFrame:
+        """Generate a set of `n_samples` samples for training.
+
+        :param n_samples: Number of samples to return.
+        :return: Samples
+        """
         x_train, _, _, _ = self.data
 
         if n_samples is None or n_samples > len(x_train):
@@ -29,11 +36,11 @@ class LabeledDataset(BaseDataset, abc.ABC):
         self,
         n_samples: Optional[int] = None,
     ) -> Tuple[pd.DataFrame, pd.Series]:
-        """Generate a set of `n_samples` samples for testing there 10% are
-        anomalous samples.
+        """Generate a set of `n_samples` samples for testing where 50% are
+        anomalous samples if possible.
 
-        :param n_samples:
-        :return:
+        :param n_samples: Number of samples to return.
+        :return: Samples and labels.
         """
         _, _, x_test, y_test = self.data
 

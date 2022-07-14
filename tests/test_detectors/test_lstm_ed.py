@@ -17,7 +17,7 @@ def test_train_lstm_ed(data):
     lstm.train(data, epochs=2)
 
 
-@pytest.mark.skip("Not implemented yet")
+# @pytest.mark.skip("Not implemented yet")
 @pytest.mark.parametrize("data", datasets)
 def test_train_predict_lstm_ed(data):
     lstm = LSTM_ED()

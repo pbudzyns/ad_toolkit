@@ -7,17 +7,18 @@ References:
     - Implementation from DeepADoTS
       https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_enc_dec_axl.py
 """
+import functools
 from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import scipy.stats
 import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, SubsetRandomSampler
 
 from sops_anomaly.detectors.base_detector import BaseDetector
-from sops_anomaly.detectors.error_distribution import ErrorDistribution
 
 
 class _LSTMEncoderDecoder(nn.Module):
@@ -99,21 +100,57 @@ class LSTM_ED(BaseDetector):
     ) -> None:
 
         super(LSTM_ED, self).__init__()
+        self._n_dims: int = 0
         self._sequence_len = sequence_len
         self._batch_size: int = batch_size
         self._hidden_size: int = hidden_size
-        self._error_dist: Optional[ErrorDistribution] = None
+        self._error_dist: Optional[scipy.stats.multivariate_normal] = None
         self.model: Optional[nn.Module] = None
 
     def train(
         self, train_data: pd.DataFrame, epochs: int = 30, verbose: bool = False,
     ) -> None:
         sequences = self._data_to_sequences(train_data)
-        train_data_loader = self._get_data_loader(sequences)
-        self._init_model(n_dims=sequences[0].shape[1])
+        train_data_loader = self._get_train_data_loader(sequences)
+        self._n_dims = sequences[0].shape[1]
+        self._init_model()
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
         self._run_train_loop(epochs, optimizer, train_data_loader, verbose)
+        # TODO: make dataset split
+        self._fit_error_distribution(train_data_loader)
+
+    def _fit_error_distribution(self, data_loader: DataLoader) -> None:
+        """Fit multivariate gaussian distribution to a given sample using
+        maximum likelihood estimation method.
+
+        Source:
+          https://stackoverflow.com/questions/27230824/fit-multivariate-gaussian-distribution-to-a-given-dataset
+
+        :param sample:
+        :return:
+        """
+        error_vectors = self._compute_errors(data_loader)
+
+        means = np.mean(error_vectors, axis=0)
+        cov = np.cov(error_vectors, rowvar=False)
+
+        self._dist = functools.partial(
+            scipy.stats.multivariate_normal.logpdf,
+            mean=means,
+            cov=cov,
+            allow_singular=True,
+        )
+
+    def _compute_errors(self, data_loader: DataLoader) -> List[np.ndarray]:
+        self.model.eval()
+        error_vectors = []
+        for inputs in data_loader:
+            inputs = inputs.float()
+            output = self.model(inputs)
+            error = nn.L1Loss(reduce=False)(output, inputs)
+            error_vectors += list(error.view(-1, self._n_dims).data.numpy())
+        return error_vectors
 
     def _run_train_loop(
         self, epochs: int, optimizer: torch.optim.Optimizer,
@@ -134,19 +171,28 @@ class LSTM_ED(BaseDetector):
                 print(f"Epoch {epoch} loss: "
                       f"{epoch_loss / len(train_data_loader)}")
 
-    def _init_model(self, n_dims: int) -> None:
+    def _init_model(self) -> None:
         self.model = _LSTMEncoderDecoder(
-            n_dims=n_dims,
+            n_dims=self._n_dims,
             hidden_size=self._hidden_size,
         )
 
-    def _get_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
+    def _get_train_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
         indices = np.random.permutation(len(sequences))
         data_loader = DataLoader(
             dataset=sequences,
             batch_size=self._batch_size,
             drop_last=True,
             sampler=SubsetRandomSampler(indices),
+            pin_memory=True,
+        )
+        return data_loader
+
+    def _get_eval_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
+        data_loader = DataLoader(
+            dataset=sequences,
+            batch_size=self._batch_size,
+            drop_last=True,
             pin_memory=True,
         )
         return data_loader
@@ -159,7 +205,25 @@ class LSTM_ED(BaseDetector):
         return sequences
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
-        pass
+        sequences = self._data_to_sequences(data)
+        test_data_loader = self._get_eval_data_loader(sequences)
+
+        scores = []
+        self.model.eval()
+        for inputs in test_data_loader:
+            inputs = inputs.float()
+            outputs = self.model.forward(inputs)
+            error = nn.L1Loss(reduce=False)(outputs, inputs)
+            score = -self._dist(error.view(-1, data.shape[1]).data.numpy())
+            scores.append(score.reshape(inputs.size(0), self._sequence_len))
+
+        scores = np.concatenate(scores)
+        lattice = np.zeros((self._sequence_len, data.shape[0]))
+        for i, score in enumerate(scores):
+            lattice[i % self._sequence_len, i:i + self._sequence_len] = score
+        scores = np.nanmean(lattice, axis=0)
+
+        return scores
 
     def detect(self, data: pd.DataFrame) -> np.ndarray:
         pass
