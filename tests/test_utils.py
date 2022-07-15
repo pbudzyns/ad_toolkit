@@ -3,8 +3,10 @@ import datetime
 import numpy as np
 import pandas as pd
 import pytest
+from torch import nn
 
 from sops_anomaly.utils import window_data
+from sops_anomaly.utils.torch_utils import build_layers, build_network
 
 
 def time_stamps(n_steps):
@@ -63,3 +65,36 @@ def test_window_data_output_shape(data, window_size):
     width = data.shape[1] * window_size
     assert windowed_data.shape == (length, width)
     assert np.all(windowed_data.index == data.index[window_size-1:])
+
+
+@pytest.mark.parametrize("inputs,inner,outputs", (
+    (1, (), 2),
+    (10, (20, ), 10),
+    (10, (20, 30, 40), 10),
+))
+def test_build_layers(inputs, inner, outputs):
+    layers = build_layers(inputs, inner, outputs)
+    expected_sizes = [inputs] + list(inner) + [outputs]
+    for i, layer in enumerate(layers):
+        assert layer.in_features == expected_sizes[i]
+        assert layer.out_features == expected_sizes[i+1]
+
+
+@pytest.mark.parametrize("layers", (
+    (nn.Linear(100, 100), ),
+    (nn.Linear(100, 200), nn.Linear(200, 100)),
+    (
+        nn.Linear(100, 200), nn.Linear(200, 300), nn.Linear(300, 200),
+        nn.Linear(200, 100),
+    ),
+))
+def test_build_network(layers):
+    network = build_network(layers)
+    linear_layers = [network[i] for i in range(0, len(network), 2)]
+    activations = [network[i] for i in range(1, len(network), 2)]
+    assert all(isinstance(act, nn.ReLU) for act in activations)
+    assert all(
+        l.in_features == ll.in_features and l.out_features == ll.out_features
+        for (l, ll)
+        in zip(linear_layers, layers)
+    )

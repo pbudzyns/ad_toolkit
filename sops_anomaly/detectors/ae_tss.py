@@ -10,11 +10,12 @@ References:
 
 """
 import functools
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import torch
+from torch import nn
 
 from sops_anomaly.detectors.autoencoder import AutoEncoder
 from sops_anomaly.detectors.base_detector import BaseDetector
@@ -25,6 +26,7 @@ class AutoEncoderTSS(BaseDetector):
     def __init__(
         self,
         window_size: int,
+        layers: Union[List[int], Tuple[int]] = (500, 200),
         latent_size: int = 10,
         threshold: float = 1.1,
     ) -> None:
@@ -33,8 +35,12 @@ class AutoEncoderTSS(BaseDetector):
         :param window_size:
         """
         super(AutoEncoderTSS, self).__init__()
-        self.ae = AutoEncoder(window_size=window_size, latent_size=latent_size)
+        self.ae = AutoEncoder(
+            window_size=window_size, layers=layers, latent_size=latent_size)
+        self.model: Optional[nn.Module] = None
+        self._input_size: int = 0
         self._window_size: int = window_size
+        self._latent_size: int = latent_size
         self._threshold: float = threshold
         self.l2_norm: Callable[[np.ndarray], float] = (
             functools.partial(np.linalg.norm, ord=2, axis=1))
@@ -54,6 +60,8 @@ class AutoEncoderTSS(BaseDetector):
 
     def train(self, train_data: pd.DataFrame, epochs: int = 30) -> None:
         self.ae.train(train_data, epochs=epochs)
+        self.model = self.ae.model
+        self._input_size = self.ae._input_size
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         if self._window_size > 1:

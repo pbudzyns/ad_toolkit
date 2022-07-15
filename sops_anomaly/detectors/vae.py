@@ -6,7 +6,7 @@ References:
       detection using reconstruction probability."
 
 """
-from typing import Union, List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -16,6 +16,7 @@ import torch.optim
 import torch.distributions
 
 from sops_anomaly.detectors.base_detector import BaseDetector
+from sops_anomaly.utils.torch_utils import build_layers, build_network
 from sops_anomaly.utils import window_data
 
 
@@ -24,37 +25,35 @@ class _VAE(nn.Module):
 
      TODO: allow for batch-processing
     """
-    def __init__(self, input_size: int, latent_size: int) -> None:
+    def __init__(
+        self,
+        input_size: int,
+        layers: Union[List[int], Tuple[int]],
+        latent_size: int,
+    ) -> None:
         super(_VAE, self).__init__()
-        self._input_size: int = input_size
-        self._latent_size: int = latent_size
-        self.encoder: nn.Module = self._get_encoder()
-        self.decoder: nn.Module = self._get_decoder()
+        self.encoder: nn.Module = self._get_encoder(
+            input_size, layers, latent_size)
+        self.decoder: nn.Module = self._get_decoder(
+            latent_size, list(reversed(layers)), input_size)
         self.prior: torch.distributions.Distribution = (
             torch.distributions.Normal(0, 1))
 
-        self.layer_mu: nn.Module = nn.Linear(100, latent_size)
-        self.layer_sigma: nn.Module = nn.Linear(100, latent_size)
-        self.decoder_input: nn.Module = nn.Linear(latent_size, 100)
+        # TODO: smarter way to parametrize this?
+        self.layer_mu: nn.Module = nn.Linear(latent_size, latent_size)
+        self.layer_sigma: nn.Module = nn.Linear(latent_size, latent_size)
+        self.decoder_input: nn.Module = nn.Linear(latent_size, latent_size)
 
-    def _get_encoder(self) -> nn.Module:
-        encoder = nn.Sequential(
-            nn.Linear(self._input_size, 500),
-            nn.ReLU(),
-            nn.Linear(500, 200),
-            nn.ReLU(),
-            nn.Linear(200, 100)
-        )
+    @classmethod
+    def _get_encoder(cls, input_size, layers, output_size) -> nn.Module:
+        nn_layers = build_layers(input_size, layers, output_size)
+        encoder = build_network(nn_layers)
         return encoder
 
-    def _get_decoder(self) -> nn.Module:
-        decoder = nn.Sequential(
-            nn.Linear(100, 200),
-            nn.ReLU(),
-            nn.Linear(200, 500),
-            nn.ReLU(),
-            nn.Linear(500, self._input_size)
-        )
+    @classmethod
+    def _get_decoder(cls, input_size, layers, output_size) -> nn.Module:
+        nn_layers = build_layers(input_size, layers, output_size)
+        decoder = build_network(nn_layers)
         return decoder
 
     def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -84,8 +83,9 @@ class _VAE(nn.Module):
         eps = torch.randn_like(std)
         return eps * std + mu
 
+    @classmethod
     def loss_function(
-        self,
+        cls,
         model_outputs: Tuple[
             torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
     ) -> torch.Tensor:
@@ -112,7 +112,8 @@ class VariationalAutoEncoder(BaseDetector):
     def __init__(
         self,
         window_size: int,
-        latent_size: int,
+        latent_size: int = 50,
+        layers: Union[List[int], Tuple[int]] = (500, 200),
         l_samples: int = 10,
         threshold: float = 0.9,
     ):
@@ -126,7 +127,9 @@ class VariationalAutoEncoder(BaseDetector):
         """
         super(VariationalAutoEncoder, self).__init__()
         self._window_size: int = window_size
+        self._input_size: int = 0
         self._latent_size: int = latent_size
+        self._layers: Union[List[int], Tuple[int]] = layers
         self._l_samples: int = l_samples
         self._threshold: float = threshold
         self._max_error: float = 0.0
@@ -159,8 +162,10 @@ class VariationalAutoEncoder(BaseDetector):
         train_data = self._transform_data(train_data)
         train_data = self._data_to_tensors(train_data)
 
+        self._input_size = len(train_data[0])
         self.model = _VAE(
-            input_size=len(train_data[0]),
+            input_size=self._input_size,
+            layers=self._layers,
             latent_size=self._latent_size,
         )
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)

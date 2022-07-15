@@ -15,6 +15,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from sops_anomaly.detectors.base_detector import BaseDetector
+from sops_anomaly.utils.torch_utils import build_layers, build_network
 from sops_anomaly.utils import window_data
 
 
@@ -22,8 +23,8 @@ class _AEModel(nn.Module):
     def __init__(
         self,
         input_size: int,
-        latent_size: int,
         layers: Union[List[int], Tuple[int]],
+        latent_size: int,
     ) -> None:
 
         super().__init__()
@@ -39,8 +40,8 @@ class _AEModel(nn.Module):
         layers: Union[List[int], Tuple[int]],
         output_size: int,
     ) -> nn.Module:
-        nn_layers = cls._build_layers(input_size, layers, output_size)
-        encoder = cls._build_network(nn_layers)
+        nn_layers = build_layers(input_size, layers, output_size)
+        encoder = build_network(nn_layers)
         return encoder
 
     @classmethod
@@ -50,43 +51,14 @@ class _AEModel(nn.Module):
         layers: Union[List[int], Tuple[int]],
         output_size: int,
     ) -> nn.Module:
-        nn_layers = cls._build_layers(input_size, layers, output_size)
-        decoder = cls._build_network(nn_layers)
+        nn_layers = build_layers(input_size, layers, output_size)
+        decoder = build_network(nn_layers)
         return decoder
 
     def forward(self, data: torch.Tensor) -> torch.Tensor:
         encoded = self.encoder(data)
         decoded = self.decoder(encoded)
         return decoded
-
-    @classmethod
-    def _build_layers(cls, input_size, layers, output_size):
-        if len(layers) > 0:
-            input_layer = nn.Linear(input_size, layers[0])
-            output_layer = nn.Linear(layers[-1], output_size)
-        else:
-            return [nn.Linear(input_size, output_size)]
-
-        inner_layers = []
-        if len(layers) > 1:
-            inner_layers = [
-                nn.Linear(layers[i - 1], layers[i])
-                for i
-                in range(1, len(layers))
-            ]
-        all_layers = [input_layer] + inner_layers + [output_layer]
-        return all_layers
-
-    @classmethod
-    def _build_network(cls, layers: List[nn.Module]) -> nn.Sequential:
-        network = []
-        for layer in layers[:-1]:
-            network.extend((
-                layer,
-                nn.ReLU(),
-            ))
-        network.append(layers[-1])
-        return nn.Sequential(*network)
 
 
 class AutoEncoder(BaseDetector):
@@ -138,8 +110,8 @@ class AutoEncoder(BaseDetector):
 
         self.model = _AEModel(
             input_size=self._input_size,
-            latent_size=self._latent_size,
             layers=self._layers,
+            latent_size=self._latent_size,
         )
         self.model.train()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
