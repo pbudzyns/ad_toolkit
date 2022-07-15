@@ -12,26 +12,36 @@ datasets = (
 
 
 @pytest.mark.parametrize("data", datasets)
-def test_train_auto_encoder(data):
-    ae = LSTM_AD(hidden_size=200)
-    ae.train(data, epochs=2)
+def test_train_lstm(data):
+    lstm = LSTM_AD(hidden_size=400)
+    lstm.train(data, epochs=2)
 
 
 @pytest.mark.parametrize("data", datasets)
-def test_train_predict_auto_encoder(data):
-    ae = LSTM_AD()
-    ae.train(data, epochs=2)
+def test_train_lstm_w_validation(data):
+    lstm = LSTM_AD(hidden_size=200)
+    validation = (
+        pd.DataFrame(np.random.random(data.shape)),
+        pd.Series((np.random.random((len(data))) > 0.5).astype(np.int32)),
+    )
+    lstm.train(data, epochs=2, validation_data=validation)
 
-    p = ae.predict(data)
+
+@pytest.mark.parametrize("data", datasets)
+def test_train_predict_lstm(data):
+    lstm = LSTM_AD()
+    lstm.train(data, epochs=2)
+
+    p = lstm.predict(data)
     assert len(p) == len(data)
     # assert np.all(p >= 0) and np.all(p <= 1)
 
 
 @pytest.mark.parametrize("data", datasets)
-def test_train_detect_auto_encoder(data):
-    ae = LSTM_AD()
-    ae.train(data, epochs=2)
+def test_train_detect_lstm(data):
+    lstm = LSTM_AD()
+    lstm.train(data, epochs=2)
 
-    p = ae.detect(data)
+    p = lstm.detect(data)
     assert len(p) == len(data)
     assert all(pp in (0, 1) for pp in p)

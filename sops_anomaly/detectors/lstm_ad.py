@@ -14,6 +14,7 @@ from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 import scipy.stats
+import sklearn.metrics
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -120,6 +121,8 @@ class LSTM_AD(BaseDetector):
     def train(
         self,
         train_data: pd.DataFrame,
+        validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
+        validation_steps: int = 10,
         epochs: int = 50,
         learning_rate: float = 1e-4,
         verbose: bool = False,
@@ -127,22 +130,57 @@ class LSTM_AD(BaseDetector):
         """
 
         :param train_data:
+        :param validation_data:
+        :param validation_steps:
         :param epochs:
         :param learning_rate:
         :param verbose:
         :return:
         """
+        # Train eval data split.
         # Shape: (time_steps, d)
-        data = train_data
-        # Shape: (batch_size, time_steps-l, d), (batch_size, time_steps-l, d, l)
-        train_data, train_targets = self._transform_train_data_target(data)
-        self._d_size = train_data[0].shape[-1]
+        train_df = train_data.sample(frac=0.8)
+        eval_df = train_data.drop(index=train_df.index)
+
+        # Initialize model.
+        self._d_size = train_data.shape[-1]
         self._initialize_model()
-        # TODO: do test-eval split to estimate distribution on eval set
+        # Fit model to train data.
+        self._fit_model(train_df, epochs, learning_rate, verbose)
+        # Compute error distribution using eval data.
+        self._fit_error_distribution(eval_df)
+
+        if validation_data is not None:
+            # Use validation data to compute optimal anomaly threshold.
+            self._optimize_prediction_threshold(
+                validation_data, validation_steps)
+
+    def _optimize_prediction_threshold(
+        self,
+        validation_data: Tuple[pd.DataFrame, pd.Series],
+        steps: int,
+    ) -> None:
+        data, labels = validation_data
+        scores = self.predict(data)
+        best_f1 = 0
+        best_threshold = 0
+        for threshold in np.linspace(np.min(scores), np.max(scores), steps):
+            anomalies = (scores < threshold).astype(np.int32)
+            f1_score = sklearn.metrics.f1_score(labels, anomalies)
+            if f1_score > best_f1:
+                best_f1 = f1_score
+                best_threshold = threshold
+
+        self._threshold = best_threshold
+
+    def _fit_model(
+        self, train_df: pd.DataFrame, epochs: int, learning_rate: float,
+        verbose: bool,
+    ) -> None:
+        # Shape: (batch_size, time_steps-l, d), (batch_size, time_steps-l, d, l)
+        train_data, train_targets = self._transform_train_data_target(train_df)
         self._train_model(train_data, train_targets, epochs, learning_rate,
                           verbose)
-        self._fit_error_distribution(data)
-        # TODO: make another split to compute a threshold
 
     def _fit_error_distribution(self, data: pd.DataFrame):
         # Shape: (time_steps-l, d), (time_steps-2*l, d)
@@ -217,7 +255,7 @@ class _ErrorDistribution:
         self._dist: scipy.stats.multivariate_normal = None
 
     def __call__(self, errors: np.ndarray) -> np.ndarray:
-        return -self._dist(errors)
+        return self._dist(errors)
 
     def get_errors(
             self, output: np.ndarray, target: np.ndarray) -> np.ndarray:
@@ -258,7 +296,7 @@ class _ErrorDistribution:
         errors = errors.reshape((errors.shape[0], self._l_preds * self._d_size))
         means, cov = self._fit_multivariate_gauss(errors)
         self._dist = functools.partial(
-            scipy.stats.multivariate_normal.logpdf,
+            scipy.stats.multivariate_normal.pdf,
             mean=means,
             cov=cov,
             allow_singular=True,
