@@ -6,7 +6,7 @@ References:
      probability" J.An, S.Cho.
 
 """
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -19,37 +19,74 @@ from sops_anomaly.utils import window_data
 
 
 class _AEModel(nn.Module):
-    def __init__(self, input_size: int, latent_size: int) -> None:
+    def __init__(
+        self,
+        input_size: int,
+        latent_size: int,
+        layers: Union[List[int], Tuple[int]],
+    ) -> None:
+
         super().__init__()
-        self.encoder: nn.Module = self._get_encoder(input_size, latent_size)
-        self.decoder: nn.Module = self._get_decoder(latent_size, input_size)
+        self.encoder: nn.Module = self._get_encoder(
+            input_size, layers, latent_size)
+        self.decoder: nn.Module = self._get_decoder(
+            latent_size, list(reversed(layers)), input_size)
 
     @classmethod
-    def _get_encoder(cls, input_size: int, output_size: int) -> nn.Module:
-        encoder = nn.Sequential(
-            nn.Linear(input_size, 500),
-            nn.ReLU(),
-            nn.Linear(500, 200),
-            nn.ReLU(),
-            nn.Linear(200, output_size)
-        )
+    def _get_encoder(
+        cls,
+        input_size: int,
+        layers: Union[List[int], Tuple[int]],
+        output_size: int,
+    ) -> nn.Module:
+        nn_layers = cls._build_layers(input_size, layers, output_size)
+        encoder = cls._build_network(nn_layers)
         return encoder
 
     @classmethod
-    def _get_decoder(cls, input_size: int, output_size: int) -> nn.Module:
-        decoder = nn.Sequential(
-            nn.Linear(input_size, 200),
-            nn.ReLU(),
-            nn.Linear(200, 500),
-            nn.ReLU(),
-            nn.Linear(500, output_size)
-        )
+    def _get_decoder(
+        cls,
+        input_size: int,
+        layers: Union[List[int], Tuple[int]],
+        output_size: int,
+    ) -> nn.Module:
+        nn_layers = cls._build_layers(input_size, layers, output_size)
+        decoder = cls._build_network(nn_layers)
         return decoder
 
     def forward(self, data: torch.Tensor) -> torch.Tensor:
         encoded = self.encoder(data)
         decoded = self.decoder(encoded)
         return decoded
+
+    @classmethod
+    def _build_layers(cls, input_size, layers, output_size):
+        if len(layers) > 0:
+            input_layer = nn.Linear(input_size, layers[0])
+            output_layer = nn.Linear(layers[-1], output_size)
+        else:
+            return [nn.Linear(input_size, output_size)]
+
+        inner_layers = []
+        if len(layers) > 1:
+            inner_layers = [
+                nn.Linear(layers[i - 1], layers[i])
+                for i
+                in range(1, len(layers))
+            ]
+        all_layers = [input_layer] + inner_layers + [output_layer]
+        return all_layers
+
+    @classmethod
+    def _build_network(cls, layers: List[nn.Module]) -> nn.Sequential:
+        network = []
+        for layer in layers[:-1]:
+            network.extend((
+                layer,
+                nn.ReLU(),
+            ))
+        network.append(layers[-1])
+        return nn.Sequential(*network)
 
 
 class AutoEncoder(BaseDetector):
@@ -58,10 +95,13 @@ class AutoEncoder(BaseDetector):
         self,
         window_size: int,
         latent_size: int = 100,
+        layers: Union[List[int], Tuple[int]] = (500, 200),
         threshold: float = 0.8,
     ) -> None:
         self.model: Optional[nn.Module] = None
+        self._layers: Union[List[int], Tuple[int]] = layers
         self._window_size: int = window_size
+        self._input_size: int = 0
         self._latent_size: int = latent_size
         self._threshold: float = threshold
         self._max_error: float = 0.0
@@ -84,16 +124,25 @@ class AutoEncoder(BaseDetector):
         scores = np.array(scores)
         return np.max(scores)
 
-    def train(self, train_data: pd.DataFrame, epochs: int = 20) -> None:
+    def train(
+        self,
+        train_data: pd.DataFrame,
+        epochs: int = 20,
+        learning_rate: float = 1e-4,
+        verbose: bool = False,
+    ) -> None:
         if self._window_size > 1:
             train_data = self._transform_data(train_data)
-        input_size = len(train_data.iloc[0])
+        self._input_size = len(train_data.iloc[0])
         train_data = self._data_to_tensors(train_data)
 
-        self.model = _AEModel(input_size=input_size,
-                              latent_size=self._latent_size)
+        self.model = _AEModel(
+            input_size=self._input_size,
+            latent_size=self._latent_size,
+            layers=self._layers,
+        )
         self.model.train()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         for epoch in range(epochs):
             epoch_loss = 0
@@ -104,7 +153,8 @@ class AutoEncoder(BaseDetector):
                 epoch_loss += loss.item()
                 loss.backward()
                 optimizer.step()
-            print(f"Epoch {epoch} loss: {epoch_loss/len(train_data)}")
+            if verbose:
+                print(f"Epoch {epoch} loss: {epoch_loss/len(train_data)}")
 
         self._max_error = self._compute_threshold(train_data)
 
