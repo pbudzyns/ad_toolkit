@@ -3,4 +3,7 @@ venv/
 nab_files/
 kdd_cup_1999/
 *.pyc
-
+.ipynb_checkpoints/
+.egg-info/
+sops_anomaly.egg-info/
+results/

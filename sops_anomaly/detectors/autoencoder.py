@@ -13,6 +13,7 @@ import pandas as pd
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.utils.data import DataLoader, SubsetRandomSampler
 
 from sops_anomaly.detectors.base_detector import BaseDetector
 from sops_anomaly.utils.torch_utils import build_layers, build_network
@@ -70,13 +71,20 @@ class AutoEncoder(BaseDetector):
         layers: Union[List[int], Tuple[int]] = (500, 200),
         threshold: float = 0.8,
     ) -> None:
+        """
+
+        :param window_size:
+        :param latent_size:
+        :param layers:
+        :param threshold:
+        """
         self.model: Optional[nn.Module] = None
         self._layers: Union[List[int], Tuple[int]] = layers
         self._window_size: int = window_size
         self._input_size: int = 0
         self._latent_size: int = latent_size
         self._threshold: float = threshold
-        self._max_error: float = 0.0
+        self.max_error: float = 0.0
 
     def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
         return window_data(data, self._window_size)
@@ -100,6 +108,7 @@ class AutoEncoder(BaseDetector):
         self,
         train_data: pd.DataFrame,
         epochs: int = 20,
+        batch_size: int = 32,
         learning_rate: float = 1e-4,
         verbose: bool = False,
     ) -> None:
@@ -116,19 +125,29 @@ class AutoEncoder(BaseDetector):
         self.model.train()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
+        indices = np.random.permutation(len(train_data))
+        data_loader = DataLoader(
+            dataset=train_data,
+            batch_size=min(len(train_data), batch_size),
+            drop_last=True,
+            sampler=SubsetRandomSampler(indices),
+            pin_memory=True,
+        )
+
         for epoch in range(epochs):
             epoch_loss = 0
-            for sample in train_data:
+            for batch in data_loader:
                 optimizer.zero_grad()
-                reconstructed = self.model.forward(sample)
-                loss = F.mse_loss(reconstructed, sample)
+                reconstructed = self.model.forward(batch)
+                loss = F.mse_loss(reconstructed, batch)
                 epoch_loss += loss.item()
                 loss.backward()
                 optimizer.step()
             if verbose:
                 print(f"Epoch {epoch} loss: {epoch_loss/len(train_data)}")
 
-        self._max_error = self._compute_threshold(train_data)
+        # TODO: Use evaluation data for this
+        self.max_error = self._compute_threshold(train_data)
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         if self._window_size > 1:
@@ -146,6 +165,11 @@ class AutoEncoder(BaseDetector):
                 scores.append(F.mse_loss(rec, sample).item())
         return np.array(scores)
 
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
+    def detect(
+        self, data: pd.DataFrame, threshold: Optional[float] = None,
+    ) -> np.ndarray:
+
+        if threshold is None:
+            threshold = self._threshold
         scores = self.predict(data)
-        return (scores >= self._threshold * self._max_error).astype(np.int32)
+        return (scores >= threshold * self.max_error).astype(np.int32)

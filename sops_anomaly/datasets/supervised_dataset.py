@@ -106,7 +106,7 @@ class SupervisedDataset(BaseDataset):
 
     def get_test_samples(
         self, n_samples: Optional[int] = None,
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    ) -> Tuple[pd.DataFrame, pd.Series]:
         """Returns test set containing samples and corresponding labels.
 
         :param n_samples:
