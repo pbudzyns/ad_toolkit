@@ -1,9 +1,9 @@
 import pathlib
-import requests
 import tempfile
 from typing import List, Optional, Tuple
 
 import pandas as pd
+import requests
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
