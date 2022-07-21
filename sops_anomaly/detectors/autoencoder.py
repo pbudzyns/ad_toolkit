@@ -70,6 +70,7 @@ class AutoEncoder(BaseDetector):
         latent_size: int = 100,
         layers: Union[List[int], Tuple[int]] = (500, 200),
         threshold: float = 0.8,
+        use_gpu: bool = False,
     ) -> None:
         """
 
@@ -84,14 +85,17 @@ class AutoEncoder(BaseDetector):
         self._input_size: Optional[int] = None
         self._latent_size: int = latent_size
         self._threshold: float = threshold
+        self._device: torch.device = torch.device(
+            'cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
         self.max_error: float = 0.0
 
     def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
         return window_data(data, self._window_size)
 
-    @classmethod
-    def _data_to_tensors(cls, data: pd.DataFrame) -> List[torch.Tensor]:
-        tensors = [torch.Tensor(row) for _, row in data.iterrows()]
+    def _data_to_tensors(self, data: pd.DataFrame) -> List[torch.Tensor]:
+        tensors = [torch.Tensor(row).to(self._device)
+                   for _, row
+                   in data.iterrows()]
         return tensors
 
     def train(
@@ -127,7 +131,7 @@ class AutoEncoder(BaseDetector):
             batch_size=min(len(train_data), batch_size),
             drop_last=True,
             sampler=SubsetRandomSampler(indices),
-            pin_memory=True,
+            # pin_memory=True,
         )
 
         for epoch in range(epochs):
@@ -149,7 +153,7 @@ class AutoEncoder(BaseDetector):
             input_size=self._input_size,
             layers=self._layers,
             latent_size=self._latent_size,
-        )
+        ).to(self._device)
 
     def _compute_threshold(self, data: List[torch.Tensor]) -> float:
         scores = []

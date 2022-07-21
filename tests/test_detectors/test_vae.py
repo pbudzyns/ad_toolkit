@@ -13,8 +13,9 @@ datasets = (
 
 
 @pytest.mark.parametrize("data", datasets)
-def test_train_vae(data):
-    ae = VariationalAutoEncoder(window_size=3, latent_size=10)
+@pytest.mark.parametrize("use_gpu", (False, True))
+def test_train_vae(data, use_gpu):
+    ae = VariationalAutoEncoder(window_size=3, latent_size=10, use_gpu=use_gpu)
     ae.train(data, epochs=2)
 
 

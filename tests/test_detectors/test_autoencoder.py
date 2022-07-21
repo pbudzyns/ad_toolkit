@@ -13,8 +13,9 @@ datasets = (
 
 
 @pytest.mark.parametrize("data", datasets)
-def test_train_auto_encoder(data):
-    ae = AutoEncoder(window_size=3)
+@pytest.mark.parametrize("use_gpu", (False, True))
+def test_train_auto_encoder(data, use_gpu):
+    ae = AutoEncoder(window_size=3, use_gpu=use_gpu)
     ae.train(data, epochs=2)
 
 
