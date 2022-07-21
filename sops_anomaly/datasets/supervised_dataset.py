@@ -48,7 +48,7 @@ class SupervisedDataset(BaseDataset):
         :param anomaly_percentage:
         :return:
         """
-        x_train, y_train, _, _ = self._dataset.data
+        x_train, y_train, _, _ = self.data
         if anomaly_percentage is None:
             return self._get_normal_dataset(x_train, y_train, n_samples)
 
@@ -69,10 +69,9 @@ class SupervisedDataset(BaseDataset):
         :return:
         """
         normal_train = x_train.loc[y_train != self._anomaly_class]
-        train_data = normal_train
-        if n_samples is None:
-            return train_data
-        return x_train.sample(n=n_samples)
+        if n_samples is None or n_samples > len(normal_train):
+            return normal_train
+        return normal_train.sample(n=n_samples)
 
     def _get_mixed_dataset(
         self,

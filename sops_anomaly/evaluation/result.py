@@ -41,12 +41,20 @@ class Result:
         return self._round(
             sklearn.metrics.precision_score(self.y_labels, self.y_predicted))
 
+    @property
+    def roc_auc(self) -> float:
+        """Roc area under the curve score."""
+        return self._round(
+            sklearn.metrics.roc_auc_score(self.y_labels, self.y_predicted)
+        )
+
     def __repr__(self) -> str:
         return (
             f"Result(accuracy={self.accuracy},\n"
             f"\tprecision={self.precision},\n"
             f"\trecall={self.recall},\n"
             f"\tf1={self.f1},\n"
+            f"\troc_auc={self.roc_auc},\n"
             f"\ty_pred%={np.sum(self.y_predicted)/len(self.y_predicted)},\n"
             f"\ty_label%={np.sum(self.y_labels)/len(self.y_labels)},\n"
             f")"

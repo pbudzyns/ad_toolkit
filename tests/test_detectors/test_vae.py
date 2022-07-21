@@ -7,7 +7,7 @@ from sops_anomaly.detectors import VariationalAutoEncoder
 datasets = (
     pd.DataFrame(np.random.random((10, 1))),
     pd.DataFrame(np.random.random((10, 10))),
-    pd.DataFrame(np.random.random((5, 200))),
+    pd.DataFrame(np.random.random((10, 200))),
     pd.DataFrame(np.random.random((200, 5))),
 )
 

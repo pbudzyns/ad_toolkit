@@ -124,6 +124,7 @@ class LSTM_AD(BaseDetector):
         validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
         validation_steps: int = 10,
         epochs: int = 50,
+        batch_size: int = 32,
         learning_rate: float = 1e-4,
         verbose: bool = False,
     ) -> None:
@@ -230,7 +231,7 @@ class LSTM_AD(BaseDetector):
 
     def _get_errors(
             self, outputs: torch.Tensor, targets: np.ndarray) -> np.ndarray:
-        errors = self._error_dist.get_errors(outputs.detach().numpy(), targets)
+        errors = -self._error_dist.get_errors(outputs.detach().numpy(), targets)
         errors = errors.reshape((errors.shape[0], self._l_preds * self._d_size))
         return errors
 
@@ -296,7 +297,7 @@ class _ErrorDistribution:
         errors = errors.reshape((errors.shape[0], self._l_preds * self._d_size))
         means, cov = self._fit_multivariate_gauss(errors)
         self._dist = functools.partial(
-            scipy.stats.multivariate_normal.pdf,
+            scipy.stats.multivariate_normal.logpdf,
             mean=means,
             cov=cov,
             allow_singular=True,

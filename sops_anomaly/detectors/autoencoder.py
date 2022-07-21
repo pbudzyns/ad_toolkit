@@ -81,7 +81,7 @@ class AutoEncoder(BaseDetector):
         self.model: Optional[nn.Module] = None
         self._layers: Union[List[int], Tuple[int]] = layers
         self._window_size: int = window_size
-        self._input_size: int = 0
+        self._input_size: Optional[int] = None
         self._latent_size: int = latent_size
         self._threshold: float = threshold
         self.max_error: float = 0.0
@@ -94,16 +94,6 @@ class AutoEncoder(BaseDetector):
         tensors = [torch.Tensor(row) for _, row in data.iterrows()]
         return tensors
 
-    def _compute_threshold(self, data: List[torch.Tensor]) -> float:
-        scores = []
-        self.model.eval()
-        with torch.no_grad():
-            for sample in data:
-                rec = self.model.forward(sample)
-                scores.append(F.mse_loss(rec, sample).item())
-        scores = np.array(scores)
-        return np.max(scores)
-
     def train(
         self,
         train_data: pd.DataFrame,
@@ -113,15 +103,21 @@ class AutoEncoder(BaseDetector):
         verbose: bool = False,
     ) -> None:
         if self._window_size > 1:
-            train_data = self._transform_data(train_data)
-        self._input_size = len(train_data.iloc[0])
-        train_data = self._data_to_tensors(train_data)
+            all_data = self._transform_data(train_data)
+        else:
+            all_data = train_data
 
-        self.model = _AEModel(
-            input_size=self._input_size,
-            layers=self._layers,
-            latent_size=self._latent_size,
-        )
+        if self._input_size is None:
+            self._input_size = len(all_data.iloc[0])
+
+        all_data_tensors = self._data_to_tensors(all_data)
+
+        split = int(0.8 * len(all_data_tensors))
+        train_data = all_data_tensors[:split]
+        eval_data = all_data_tensors[split:]
+
+        if self.model is None:
+            self._init_model()
         self.model.train()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
@@ -144,10 +140,26 @@ class AutoEncoder(BaseDetector):
                 loss.backward()
                 optimizer.step()
             if verbose:
-                print(f"Epoch {epoch} loss: {epoch_loss/len(train_data)}")
+                print(f"Epoch {epoch} loss: {epoch_loss/len(data_loader)}")
 
-        # TODO: Use evaluation data for this
-        self.max_error = self._compute_threshold(train_data)
+        self.max_error = self._compute_threshold(eval_data)
+
+    def _init_model(self):
+        self.model = _AEModel(
+            input_size=self._input_size,
+            layers=self._layers,
+            latent_size=self._latent_size,
+        )
+
+    def _compute_threshold(self, data: List[torch.Tensor]) -> float:
+        scores = []
+        self.model.eval()
+        with torch.no_grad():
+            for sample in data:
+                rec = self.model.forward(sample)
+                scores.append(F.mse_loss(rec, sample).item())
+        scores = np.array(scores)
+        return np.max(scores)
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         if self._window_size > 1:

@@ -50,6 +50,17 @@ def test_get_f1(predicted, targets, expected_f1):
     assert math.isclose(result.f1, expected_f1)
 
 
+@pytest.mark.parametrize("predicted,targets,expected_roc", (
+    ([0, 0, 0, 0], [0, 0, 1, 1], 0.5),
+    ([0, 0, 0, 1], [0, 0, 1, 1], 0.75),
+    ([0, 0, 1, 1], [0, 0, 1, 1], 1.0),
+    ([1, 1, 1, 1], [0, 0, 1, 1], 0.5),
+))
+def test_get_f1(predicted, targets, expected_roc):
+    result = Result(predicted, targets)
+    assert math.isclose(result.roc_auc, expected_roc)
+
+
 def test_aggregate_results():
     preds1, targets1 = [0, 0, 0], [1, 1, 1]
     preds2, targets2 = [1, 1, 0], [1, 1, 0]

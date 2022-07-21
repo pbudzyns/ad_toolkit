@@ -14,6 +14,8 @@ from torch import nn
 from torch.nn import functional as F
 import torch.optim
 import torch.distributions
+from torch.utils.data import DataLoader, SubsetRandomSampler
+
 
 from sops_anomaly.detectors.base_detector import BaseDetector
 from sops_anomaly.utils.torch_utils import build_layers, build_network
@@ -93,10 +95,10 @@ class _VAE(nn.Module):
 
         reconstruction_loss = F.mse_loss(x_hat, x)
         # TODO: batch processing loss definition
-        # kld_loss = torch.mean(
-        #     -0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1),
-        #     dim=0)
-        kl_loss = -0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp())
+        kl_loss = torch.mean(
+            -0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1),
+            dim=0)
+        # kl_loss = -0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp())
 
         total_loss = reconstruction_loss + kl_loss
         return total_loss
@@ -127,12 +129,12 @@ class VariationalAutoEncoder(BaseDetector):
         """
         super(VariationalAutoEncoder, self).__init__()
         self._window_size: int = window_size
-        self._input_size: int = 0
+        self._input_size: Optional[int] = None
         self._latent_size: int = latent_size
         self._layers: Union[List[int], Tuple[int]] = layers
         self._l_samples: int = l_samples
         self._threshold: float = threshold
-        self._max_error: float = 0.0
+        self.max_error: float = 0.0
         self.model: Optional[nn.Module] = None
 
     def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -157,32 +159,55 @@ class VariationalAutoEncoder(BaseDetector):
         self,
         train_data: pd.DataFrame,
         epochs: int = 30,
+        batch_size: int = 32,
         learning_rate: float = 1e-4,
+        verbose: bool = False,
     ) -> None:
-        train_data = self._transform_data(train_data)
-        train_data = self._data_to_tensors(train_data)
+        all_data = self._transform_data(train_data)
+        all_data_tensors = self._data_to_tensors(all_data)
 
-        self._input_size = len(train_data[0])
+        split = int(0.8 * len(all_data_tensors))
+        train_data = all_data_tensors[:split]
+        eval_data = all_data_tensors[split:]
+
+        if self._input_size is None:
+            self._input_size = len(train_data[0])
+        if self.model is None:
+            self._init_model()
+
+        indices = np.random.permutation(len(train_data))
+        data_loader = DataLoader(
+            dataset=train_data,
+            batch_size=min(len(train_data), batch_size),
+            drop_last=True,
+            sampler=SubsetRandomSampler(indices),
+            pin_memory=True,
+        )
+
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self._run_train_loop(optimizer, data_loader, epochs, verbose)
+        self.max_error = self._compute_threshold(eval_data)
+
+    def _run_train_loop(self, optimizer, data_loader, epochs, verbose):
+        self.model.train()
+        for epoch in range(epochs):
+            epoch_loss = 0
+            for batch in data_loader:
+                optimizer.zero_grad()
+                results = self.model.forward(batch)
+                loss = self.model.loss_function(results)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+            if verbose:
+                print(f"Epoch {epoch} loss: {epoch_loss / len(data_loader)}")
+
+    def _init_model(self):
         self.model = _VAE(
             input_size=self._input_size,
             layers=self._layers,
             latent_size=self._latent_size,
         )
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-
-        self.model.train()
-        for epoch in range(epochs):
-            epoch_loss = 0
-            for sample in train_data:
-                optimizer.zero_grad()
-                results = self.model.forward(sample)
-                loss = self.model.loss_function(results)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item()
-            print(f"Epoch {epoch} loss: {epoch_loss / len(train_data)}")
-
-        self._max_error = self._compute_threshold(train_data)
 
     def sample(self) -> np.ndarray:
         return self.model.sample()
@@ -205,4 +230,4 @@ class VariationalAutoEncoder(BaseDetector):
 
     def detect(self, data: pd.DataFrame) -> np.ndarray:
         scores = self.predict(data)
-        return (scores >= self._threshold * self._max_error).astype(np.int32)
+        return (scores >= self._threshold * self.max_error).astype(np.int32)

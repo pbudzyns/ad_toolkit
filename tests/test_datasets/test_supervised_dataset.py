@@ -3,15 +3,15 @@ from typing import Optional
 import pandas as pd
 import pytest
 
-from sops_anomaly.datasets import MNIST
+from sops_anomaly.datasets import MNIST, KddCup
 from sops_anomaly.datasets import SupervisedDataset
 
 
 @pytest.fixture(scope="session")
 def dataset() -> SupervisedDataset:
-    mnist = MNIST()
-    dataset = SupervisedDataset(dataset=mnist)
-    dataset.load()
+    # dataset = MNIST()
+    dataset = KddCup()
+    dataset = SupervisedDataset(dataset=dataset)
     return dataset
 
 
@@ -48,14 +48,13 @@ def test_sup_dataset_get_normal_train_data(dataset: SupervisedDataset):
 
 
 @pytest.mark.parametrize("ap", (0.01, 0.03, 0.05))
+@pytest.mark.parametrize("size", (100, 1000, 5000, None))
 def test_sup_dataset_get_train_data_w_anomaly(
-        dataset: SupervisedDataset, ap: float):
+        dataset: SupervisedDataset, ap: float, size: Optional[int]):
 
-    x_train = dataset.get_train_samples(anomaly_percentage=ap)
+    x_train = dataset.get_train_samples(anomaly_percentage=ap, n_samples=size)
     y_train = dataset.data[1][x_train.index]
-
-    y_anomaly = y_train[y_train == 1]
-    assert len(y_anomaly) == int(ap * len(x_train))
+    assert y_train.sum() == int(ap * len(y_train))
 
 
 @pytest.mark.parametrize("ap", (0.01, 0.03, 0.05))

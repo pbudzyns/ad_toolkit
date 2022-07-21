@@ -2,9 +2,10 @@ import pathlib
 import tempfile
 from typing import List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 import requests
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 
 from sops_anomaly.datasets.labeled_dataset import LabeledDataset
@@ -74,7 +75,6 @@ class KddCup(LabeledDataset):
         :return:
         """
         new_labels = []
-        print(set(data[self._label_name]))
         for row in data[self._label_name]:
             if row != "normal":
                 new_labels.append(1)
@@ -82,18 +82,29 @@ class KddCup(LabeledDataset):
                 new_labels.append(0)
         data[self._label_name] = new_labels
 
-    @classmethod
-    def _encode_categorical(cls, data: pd.DataFrame, types: List[str]) -> None:
+    def _encode_categorical(self, data: pd.DataFrame, types: List[str]) -> None:
         """Encodes symbolic variables into categorical values.
 
         :param data:
         :param types:
         :return:
         """
+        to_drop = []
         for i, (name, col) in enumerate(data.items()):
-            if types[i] != "symbolic":
+            if types[i] == "continuous":
+                data[name] = np.nan_to_num(
+                    (data[name] - data[name].mean())/data[name].std())
                 continue
-            data[name] = LabelEncoder().fit_transform(col)
+            if types[i] != "symbolic" or name == self._label_name:
+                continue
+            to_drop.append(name)
+            encoder = OneHotEncoder().fit(col.values.reshape(-1, 1))
+            encoded = encoder.transform(
+                col.values.reshape(-1, 1))
+            for xx in range(encoded.shape[1]):
+                data[f"{name}_x{xx}"] = encoded[:, xx].toarray()
+        for name in to_drop:
+            data.drop(name, axis=1, inplace=True)
 
     def _extract_names(
         self,

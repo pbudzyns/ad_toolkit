@@ -54,9 +54,3 @@ def test_mnist_get_test_samples(mnist: MNIST, n_samples):
     else:
         assert len(x_test) == n_samples
 
-
-def test_mnist_test_set_balanced(mnist: MNIST):
-    _, y_test = mnist.get_test_samples(n_samples=1500)
-    normal = y_test[y_test == 0]
-    anomaly = y_test[y_test == 1]
-    assert len(normal) == len(anomaly)
