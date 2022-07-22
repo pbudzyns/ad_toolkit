@@ -21,13 +21,17 @@ class Result:
     def recall(self) -> float:
         """Compute recall score."""
         return self._round(
-            sklearn.metrics.recall_score(self.y_labels, self.y_predicted))
+            sklearn.metrics.recall_score(
+                self.y_labels, self.y_predicted, zero_division=1)
+        )
 
     @property
     def f1(self) -> float:
         """Compute F1 score."""
         return self._round(
-            sklearn.metrics.f1_score(self.y_labels, self.y_predicted))
+            sklearn.metrics.f1_score(
+                self.y_labels, self.y_predicted, zero_division=1),
+        )
 
     @property
     def accuracy(self) -> float:
@@ -39,11 +43,16 @@ class Result:
     def precision(self) -> float:
         """Compute precision score."""
         return self._round(
-            sklearn.metrics.precision_score(self.y_labels, self.y_predicted))
+            sklearn.metrics.precision_score(
+                self.y_labels, self.y_predicted, zero_division=1),
+        )
 
     @property
     def roc_auc(self) -> float:
         """Roc area under the curve score."""
+        if not np.any(self.y_labels):
+            return np.nan
+
         return self._round(
             sklearn.metrics.roc_auc_score(self.y_labels, self.y_predicted)
         )

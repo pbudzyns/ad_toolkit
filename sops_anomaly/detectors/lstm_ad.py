@@ -26,51 +26,97 @@ class LSTM_AD(BaseDetector):
 
     def __init__(
         self,
-        l_predictions: int = 10,
-        hidden_size: int = 400,
+        window_size: int = 10,
+        hidden_size: int = 32,
         threshold: float = 0.9,
     ) -> None:
         """
 
-        :param l_predictions:
+        :param window_size:
         :param hidden_size:
         """
         super(LSTM_AD, self).__init__()
-        self.model: Optional[nn.LSTM] = None
-        self.linear: Optional[nn.Module] = None
+        self.model: Optional[_LSTM] = None
         self._threshold: float = threshold
         self._hidden_size: int = hidden_size
         # Model output dimensions (l, d)
-        self._l_preds: int = l_predictions
+        self._l_preds: int = window_size
         self._d_size: int = 0
         # Multivariate gaussian scipy.stats.multivariate_gaussian
         self._error_dist = None
 
-    def _initialize_model(
-            self, n_layers: int = 2, dropout: float = 0.5) -> None:
-        self.model = nn.LSTM(
-            input_size=self._d_size,
-            hidden_size=self._hidden_size,
-            proj_size=self._l_preds * self._d_size,
-            num_layers=n_layers,
-            dropout=dropout,
-            bidirectional=False,
-        )
-        self._error_dist = _ErrorDistribution(self._d_size, self._l_preds)
+    def train(
+        self,
+        train_data: pd.DataFrame,
+        validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
+        validation_steps: int = 10,
+        epochs: int = 50,
+        learning_rate: float = 1e-4,
+        verbose: bool = False,
+    ) -> None:
+        """
 
-    def _reshape_outputs(self, output: torch.Tensor) -> torch.Tensor:
-        """Model returns self._l_preds predicted values for each of self._d_size
-        dimensions.
-
-        :param output:
+        :param train_data:
+        :param validation_data:
+        :param validation_steps:
+        :param epochs:
+        :param learning_rate:
+        :param verbose:
         :return:
         """
-        d1, d2, _ = output.shape
-        return output.reshape(d1, d2, self._d_size, self._l_preds)
+        # Train eval data split.
+        # Shape: (time_steps, d)
+        split = int(0.7 * len(train_data))
+        train_df = train_data.iloc[:split, :]
+        eval_df = train_data.iloc[split:, :]
+
+        # Initialize model.
+        self._d_size = train_data.shape[-1]
+        self._initialize_model()
+        # Fit model to train data.
+        self._fit_model(train_df, epochs, learning_rate, verbose)
+        # Compute error distribution using eval data.
+        self._fit_error_distribution(eval_df)
+
+        if validation_data is not None:
+            # Use validation data to compute optimal anomaly threshold.
+            self._optimize_prediction_threshold(
+                validation_data, validation_steps)
+
+    def predict(self, data: pd.DataFrame) -> np.ndarray:
+        """Return anomaly scores for data points.
+
+        :param data:
+        :return:
+        """
+        self.model.eval()
+        inputs, targets = self._transform_eval_data_target(data)
+        outputs = self._get_model_outputs(self._to_tensor(inputs))
+        errors = self._get_errors(outputs, targets)
+        scores = self._get_scores(data, errors)
+        return scores
+
+    def detect(self, data: pd.DataFrame) -> np.ndarray:
+        """Detect anomalous data points in the provided data.
+
+        :param data:
+        :return:
+        """
+        scores = self.predict(data)
+        return (scores < self._threshold).astype(np.int32)
+
+    def _initialize_model(self) -> None:
+        self.model = _LSTM(
+            input_size=self._d_size,
+            output_size=self._l_preds,
+            hidden_size=self._hidden_size,
+        )
+        self.model.double()
+        self._error_dist = _ErrorDistribution(self._d_size, self._l_preds)
 
     @classmethod
     def _to_tensor(cls, array: np.ndarray) -> torch.Tensor:
-        return torch.from_numpy(array.astype(np.float32))
+        return torch.from_numpy(array.astype(np.float64))
 
     def _transform_train_data_target(
             self, data: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -107,54 +153,15 @@ class LSTM_AD(BaseDetector):
         The evaluation is realised as computing reconstruction errors
         for a given point x(t) over all its reconstructions. Because of that
         evaluation can be only performed for points x(t), where t comes from:
-        self._l_preds < t <= len(data)-self._l_preds
+        self._l_preds < t <= len(data)
 
         :param data:
         :return:
         """
         values = np.expand_dims(data, axis=0)
-        eval_data = values[:, :-self._l_preds, :]
-        eval_target = values[:, self._l_preds:-self._l_preds+1, :]
-
+        eval_data = values
+        eval_target = values[:, self._l_preds:, :]
         return eval_data, eval_target
-
-    def train(
-        self,
-        train_data: pd.DataFrame,
-        validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
-        validation_steps: int = 10,
-        epochs: int = 50,
-        batch_size: int = 32,
-        learning_rate: float = 1e-4,
-        verbose: bool = False,
-    ) -> None:
-        """
-
-        :param train_data:
-        :param validation_data:
-        :param validation_steps:
-        :param epochs:
-        :param learning_rate:
-        :param verbose:
-        :return:
-        """
-        # Train eval data split.
-        # Shape: (time_steps, d)
-        train_df = train_data.sample(frac=0.8)
-        eval_df = train_data.drop(index=train_df.index)
-
-        # Initialize model.
-        self._d_size = train_data.shape[-1]
-        self._initialize_model()
-        # Fit model to train data.
-        self._fit_model(train_df, epochs, learning_rate, verbose)
-        # Compute error distribution using eval data.
-        self._fit_error_distribution(eval_df)
-
-        if validation_data is not None:
-            # Use validation data to compute optimal anomaly threshold.
-            self._optimize_prediction_threshold(
-                validation_data, validation_steps)
 
     def _optimize_prediction_threshold(
         self,
@@ -197,13 +204,6 @@ class LSTM_AD(BaseDetector):
     ) -> None:
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-        self._run_train_loop(
-            epochs, optimizer, train_data, train_targets, verbose)
-
-    def _run_train_loop(
-        self, epochs: int, optimizer: torch.optim.Optimizer,
-        train_data: torch.Tensor, train_targets: torch.Tensor, verbose: bool,
-    ) -> None:
         self.model.train()
         for epoch in range(epochs):
             optimizer.zero_grad()
@@ -214,38 +214,61 @@ class LSTM_AD(BaseDetector):
             if verbose:
                 print(f"Epoch {epoch} loss: {loss.item()}")
 
-    def predict(self, data: pd.DataFrame) -> np.ndarray:
-        self.model.eval()
-        inputs, targets = self._transform_eval_data_target(data)
-        outputs = self._get_model_outputs(self._to_tensor(inputs))
-        errors = self._get_errors(outputs, targets)
-        scores = self._get_scores(data, errors)
-
-        return scores
-
     def _get_scores(self, data: pd.DataFrame, errors: np.ndarray) -> np.ndarray:
         p = self._error_dist(errors)
         scores = np.zeros((len(data),))
-        scores[self._l_preds:-self._l_preds + 1] = p
+        scores[self._l_preds:] = p
         return scores
 
     def _get_errors(
             self, outputs: torch.Tensor, targets: np.ndarray) -> np.ndarray:
-        errors = -self._error_dist.get_errors(outputs.detach().numpy(), targets)
+        errors = self._error_dist.get_errors(outputs.detach().numpy(), targets)
         errors = errors.reshape((errors.shape[0], self._l_preds * self._d_size))
         return errors
 
     def _get_model_outputs(self, inputs: torch.Tensor) -> torch.Tensor:
         if self.model.training:
-            outputs, _ = self.model(inputs)
+            outputs = self.model(inputs)
         else:
             with torch.no_grad():
-                outputs, _ = self.model(inputs)
-        return self._reshape_outputs(outputs)
+                outputs = self.model(inputs)
+        return outputs
 
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
-        scores = self.predict(data)
-        return (scores < self._threshold).astype(np.int32)
+
+class _LSTM(nn.Module):
+    def __init__(
+        self, input_size: int, output_size: int, hidden_size: int,
+        batch_size: int = 1,
+    ) -> None:
+        super().__init__()
+        self._d_size = input_size
+        self._l_preds = output_size
+        self.batch_size = batch_size
+        self.hidden_size = hidden_size
+        self.lstm_layer_1 = nn.LSTMCell(input_size, self.hidden_size)
+        self.lstm_layer_2 = nn.LSTMCell(self.hidden_size, self.hidden_size)
+        self.linear = nn.Linear(
+            self.hidden_size, input_size * output_size)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        outputs = []
+        h_t = torch.zeros(self.batch_size, self.hidden_size).double()
+        c_t = torch.zeros(self.batch_size, self.hidden_size).double()
+        h_t2 = torch.zeros(self.batch_size, self.hidden_size).double()
+        c_t2 = torch.zeros(self.batch_size, self.hidden_size).double()
+
+        for input_t in inputs.chunk(inputs.size(1), dim=1):
+            h_t, c_t = self.lstm_layer_1(input_t.squeeze(dim=1), (h_t, c_t))
+            h_t2, c_t2 = self.lstm_layer_2(h_t, (h_t2, c_t2))
+            output = self.linear(h_t2)
+            outputs += [output]
+        outputs = torch.stack(outputs, 1).squeeze()
+
+        return outputs.view(
+            inputs.size(0), inputs.size(1), self._d_size, self._l_preds)
+
+    def __call__(self, inputs: torch.Tensor) -> torch.Tensor:
+        return self.forward(inputs)
 
 
 class _ErrorDistribution:
@@ -254,34 +277,40 @@ class _ErrorDistribution:
         self._d_size: int = n_dims
         self._l_preds: int = l_preds
         self._dist: scipy.stats.multivariate_normal = None
+        self.means = None
+        self.cov = None
 
     def __call__(self, errors: np.ndarray) -> np.ndarray:
-        return self._dist(errors)
+        return -scipy.stats.multivariate_normal.logpdf(
+            errors,
+            mean=self.means,
+            cov=self.cov,
+            allow_singular=True,
+        )
 
     def get_errors(
             self, output: np.ndarray, target: np.ndarray) -> np.ndarray:
-        """Computes reconstruction error of a point x(t) over consecutive
-        reconstructions. All self._l_preds reconstructions are needed to
-        construct error vector hence only a range of outputs contribute
-        to the result.
-
-        Ex. outputs = [
-            [x2_1, x3_1, x4_1],
-            [x3_2, x4_2, x5_2],
-            [x4_3, x5_3, x6_3],
-        ]
-        Then error can be only computed for x4 using [x4_1, x4_2, x4_3].
-
-        :param output:
-        :param target:
-        :return:
-        """
-        errors = []
-        for i in range(self._l_preds-1):
-            errors += [output[:, i:-self._l_preds+i+1, :, self._l_preds-1-i]]
-        errors += [output[:, self._l_preds-1:, :, 0]]
+        # """Computes reconstruction error of a point x(t) over consecutive
+        # reconstructions. All self._l_preds reconstructions are needed to
+        # construct error vector hence only a range of outputs contribute
+        # to the result.
+        #
+        # Ex. outputs = [
+        #     [x2_1, x3_1, x4_1],
+        #     [x3_2, x4_2, x5_2],
+        #     [x4_3, x5_3, x6_3],
+        # ]
+        # Then error can be only computed for x4 using [x4_1, x4_2, x4_3].
+        #
+        # :param output:
+        # :param target:
+        # :return:
+        # """
+        errors = [output[:, self._l_preds - 1:-1, :, 0]]
+        for i in range(1, self._l_preds):
+            errors += [output[:, self._l_preds - 1 - i:-1 - i, :, i]]
         errors = np.stack(errors, axis=3)
-        errors = errors - target[..., np.newaxis]
+        errors = target[..., np.newaxis] - errors
         return errors.squeeze(axis=0)
 
     def fit(self, outputs: np.ndarray, targets: np.ndarray) -> None:
@@ -290,18 +319,10 @@ class _ErrorDistribution:
     def _fit_error_distribution(
             self, outputs: np.ndarray, eval_targets: np.ndarray) -> None:
         # Shape: (batch_size, time_steps, d, l)
-        # outputs = self._reshape_output(outputs)
-        # Shape: (time_steps, d, l)
         errors = self.get_errors(outputs, eval_targets)
         # Shape: (time_steps, d*l)
         errors = errors.reshape((errors.shape[0], self._l_preds * self._d_size))
-        means, cov = self._fit_multivariate_gauss(errors)
-        self._dist = functools.partial(
-            scipy.stats.multivariate_normal.logpdf,
-            mean=means,
-            cov=cov,
-            allow_singular=True,
-        )
+        self.means, self.cov = self._fit_multivariate_gauss(errors)
 
     @classmethod
     def _fit_multivariate_gauss(

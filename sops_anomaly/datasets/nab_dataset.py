@@ -1,6 +1,6 @@
 from collections import defaultdict
 import json
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 import urllib.request
 
 import matplotlib.pyplot as plt
@@ -68,16 +68,26 @@ class NabDataset(BaseDataset):
 
         self._data = (data, labels)
 
-    def get_train_samples(self) -> pd.DataFrame:
-        return self._data[0]
+    def get_train_samples(
+        self, normalize: bool = True,
+    ) -> pd.DataFrame:
+        data = self._normalized_data() if normalize else self.data[0]
+        return data
+
+    def _normalized_data(self):
+        normalized = self.data[0].copy()
+        normalized = (normalized - normalized.mean()) / normalized.std()
+        return normalized
 
     def get_test_samples(self) -> Tuple[pd.DataFrame, pd.Series]:
-        return self._data
+        return self.data
 
     def plot(
         self,
         anomalies: Optional[Dict[str, np.ndarray]] = None,
         vertical_margin: int = 10,
+        show_legend: bool = True,
+        anomaly_style_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         ax = plt.gca()
         fig = plt.gcf()
@@ -86,16 +96,22 @@ class NabDataset(BaseDataset):
         x_lim, y_lim = self._get_x_y_lim(vertical_margin, x)
         self._plot_known_anomalies(labels, y_lim)
         if anomalies is not None:
-            self._plot_predicted_anomalies(anomalies, labels, y_lim)
+            self._plot_predicted_anomalies(
+                anomalies, labels, y_lim, anomaly_style_kwargs)
+        if show_legend:
+            plt.legend()
 
         plt.plot(x)
-        plt.legend()
         ax.set_ylim(y_lim)
         ax.set_xlim(x_lim)
         fig.set_size_inches(10, 5)
 
     @classmethod
-    def _plot_predicted_anomalies(cls, anomalies, labels, y_lim):
+    def _plot_predicted_anomalies(
+            cls, anomalies, labels, y_lim, anomaly_style_kwargs) -> None:
+        style = {'ls': '-.', 'lw': 0.5, 'alpha': 0.1}
+        if anomaly_style_kwargs is not None:
+            style.update(anomaly_style_kwargs)
         for i, (name, points) in enumerate(anomalies.items()):
             anomalies_idx = labels.index[points.astype(bool)]
             color = cls._anomaly_colors[i % len(cls._anomaly_colors)]
@@ -104,9 +120,8 @@ class NabDataset(BaseDataset):
                 ymin=y_lim[0],
                 ymax=y_lim[1],
                 colors=color,
-                ls='-',
-                lw=1,
                 label=name,
+                **style,
             )
 
     @classmethod

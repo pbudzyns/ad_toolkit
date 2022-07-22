@@ -13,14 +13,16 @@ datasets = (
 
 
 @pytest.mark.parametrize("data", datasets)
-def test_train_lstm(data):
-    lstm = LSTM_AD(hidden_size=600)
+@pytest.mark.parametrize("window_size", (1, 5, 10))
+@pytest.mark.parametrize("hidden_size", (10, 20, 30))
+def test_train_lstm(data, window_size, hidden_size):
+    lstm = LSTM_AD(window_size=window_size, hidden_size=hidden_size)
     lstm.train(data, epochs=2)
 
 
 @pytest.mark.parametrize("data", datasets)
 def test_train_lstm_w_validation(data):
-    lstm = LSTM_AD(hidden_size=600)
+    lstm = LSTM_AD()
     validation = (
         pd.DataFrame(np.random.random(data.shape)),
         pd.Series((np.random.random((len(data))) > 0.5).astype(np.int32)),
@@ -30,7 +32,7 @@ def test_train_lstm_w_validation(data):
 
 @pytest.mark.parametrize("data", datasets)
 def test_train_predict_lstm(data):
-    lstm = LSTM_AD(hidden_size=600)
+    lstm = LSTM_AD()
     lstm.train(data, epochs=2)
 
     p = lstm.predict(data)
@@ -40,7 +42,7 @@ def test_train_predict_lstm(data):
 
 @pytest.mark.parametrize("data", datasets)
 def test_train_detect_lstm(data):
-    lstm = LSTM_AD(hidden_size=600)
+    lstm = LSTM_AD()
     lstm.train(data, epochs=2)
 
     p = lstm.detect(data)

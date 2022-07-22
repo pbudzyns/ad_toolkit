@@ -29,7 +29,7 @@ def test_get_recall(predicted, targets, expected_recall):
 
 
 @pytest.mark.parametrize("predicted,targets,expected_precision", (
-    ([0, 0, 0, 0], [0, 0, 1, 1], 0),
+    ([1, 0, 0, 0], [0, 0, 1, 1], 0),
     ([0, 0, 0, 1], [0, 0, 1, 1], 1.0),
     ([0, 0, 1, 1], [0, 0, 1, 1], 1.0),
     ([1, 1, 1, 1], [0, 0, 1, 1], 0.5),
