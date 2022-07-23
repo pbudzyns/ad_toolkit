@@ -337,5 +337,5 @@ class _ErrorDistribution:
         :return:
         """
         mean = np.mean(sample, axis=0)
-        cov = np.cov(sample, rowvar=0)
+        cov = np.cov(sample, rowvar=False)
         return mean, cov

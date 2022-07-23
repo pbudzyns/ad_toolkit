@@ -23,17 +23,189 @@ from torch.utils.data import DataLoader, SubsetRandomSampler
 from sops_anomaly.detectors.base_detector import BaseDetector
 
 
+class LSTM_ED(BaseDetector):
+
+    def __init__(
+        self,
+        sequence_len: int = 20,
+        hidden_size: int = 32,
+        threshold: float = 0.5,
+    ) -> None:
+
+        super(LSTM_ED, self).__init__()
+        self._n_dims: int = 0
+        self._sequence_len = sequence_len
+        self._batch_size: Optional[int] = None
+        self._hidden_size: int = hidden_size
+        self._error_dist: Optional[scipy.stats.multivariate_normal] = None
+        self._threshold: float = threshold
+        self.model: Optional[nn.Module] = None
+
+    def train(
+        self,
+        train_data: pd.DataFrame,
+        validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
+        validation_steps: int = 10,
+        epochs: int = 30,
+        learning_rate: float = 1e-4,
+        batch_size: int = 32,
+        verbose: bool = False,
+    ) -> None:
+        self._batch_size = batch_size
+        sequences = self._data_to_sequences(train_data)
+        # Train eval data split.
+        split = int(0.8 * len(sequences))
+        train_data_loader = self._get_train_data_loader(sequences[:split])
+        eval_data_loader = self._get_train_data_loader(sequences[split:])
+
+        # Initialize the model.
+        self._n_dims = sequences[0].shape[1]
+        self._init_model()
+
+        self._fit_model(train_data_loader, epochs, learning_rate, verbose)
+        self._fit_error_distribution(eval_data_loader)
+
+        if validation_data is not None:
+            self._optimize_prediction_threshold(
+                validation_data, validation_steps)
+
+    def predict(self, data: pd.DataFrame) -> np.ndarray:
+        sequences = self._data_to_sequences(data)
+        test_data_loader = self._get_eval_data_loader(sequences)
+
+        scores = []
+        self.model.eval()
+        for inputs in test_data_loader:
+            inputs = inputs.float()
+            outputs = self.model.forward(inputs)
+            error = F.l1_loss(outputs, inputs, reduction='none')
+            error = error.view(-1, data.shape[1]).detach().numpy()
+            score = -self._dist(error)
+            scores.append(score.reshape(inputs.size(0), self._sequence_len))
+
+        scores = np.concatenate(scores)
+        lattice = np.zeros((self._sequence_len, data.shape[0]))
+        for i, score in enumerate(scores):
+            lattice[i % self._sequence_len, i:i + self._sequence_len] = score
+        scores = np.nanmean(lattice, axis=0)
+
+        return scores
+
+    def detect(self, data: pd.DataFrame) -> np.ndarray:
+        scores = self.predict(data)
+        return (scores < self._threshold).astype(np.int32)
+
+    def _optimize_prediction_threshold(
+        self,
+        validation_data: Tuple[pd.DataFrame, pd.Series],
+        steps: int,
+    ) -> None:
+        data, labels = validation_data
+        scores = self.predict(data)
+        best_f1 = 0
+        best_threshold = 0
+        for threshold in np.linspace(np.min(scores), np.max(scores), steps):
+            anomalies = (scores < threshold).astype(np.int32)
+            f1_score = sklearn.metrics.f1_score(labels, anomalies)
+            if f1_score > best_f1:
+                best_f1 = f1_score
+                best_threshold = threshold
+
+        self._threshold = best_threshold
+
+    def _fit_model(self, train_data_loader, epochs, learning_rate, verbose):
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.model.train()
+        for epoch in range(epochs):
+            epoch_loss = 0
+            for inputs in train_data_loader:
+                inputs = inputs.float()
+                optimizer.zero_grad()
+                output = self.model.forward(inputs)
+                loss = F.mse_loss(output, inputs, reduction='sum')
+                epoch_loss += loss.item() / len(inputs)
+                loss.backward()
+                optimizer.step()
+            if verbose:
+                print(f"Epoch {epoch} loss: "
+                      f"{epoch_loss / len(train_data_loader)}")
+
+    def _fit_error_distribution(self, data_loader: DataLoader) -> None:
+        """Fit multivariate gaussian distribution to a given sample using
+        maximum likelihood estimation method.
+
+        Source:
+          https://stackoverflow.com/questions/27230824/fit-multivariate-gaussian-distribution-to-a-given-dataset
+
+
+        :param sample:
+        :return:
+        """
+        error_vectors = self._compute_errors(data_loader)
+
+        means = np.mean(error_vectors, axis=0)
+        cov = np.cov(error_vectors, rowvar=False)
+
+        self._dist = functools.partial(
+            scipy.stats.multivariate_normal.logpdf,
+            mean=means,
+            cov=cov,
+            allow_singular=True,
+        )
+
+    def _compute_errors(self, data_loader: DataLoader) -> List[np.ndarray]:
+        self.model.eval()
+        error_vectors = []
+        for inputs in data_loader:
+            inputs = inputs.float()
+            output = self.model.forward(inputs)
+            error = F.l1_loss(output, inputs, reduction='none')
+            error_vectors += list(error.view(-1, self._n_dims).detach().numpy())
+        return error_vectors
+
+    def _init_model(self) -> None:
+        self.model = _LSTMEncoderDecoder(
+            n_dims=self._n_dims,
+            hidden_size=self._hidden_size,
+        )
+
+    def _get_train_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
+        indices = np.random.permutation(len(sequences))
+        data_loader = DataLoader(
+            dataset=sequences,
+            batch_size=min(len(sequences), self._batch_size),
+            drop_last=True,
+            sampler=SubsetRandomSampler(indices),
+            pin_memory=True,
+        )
+        return data_loader
+
+    def _get_eval_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
+        data_loader = DataLoader(
+            dataset=sequences,
+            batch_size=self._batch_size,
+            drop_last=True,
+            pin_memory=True,
+        )
+        return data_loader
+
+    def _data_to_sequences(self, data: pd.DataFrame) -> List[np.ndarray]:
+        values = data.values
+        sequences = [values[i:i + self._sequence_len]
+                     for i
+                     in range(values.shape[0] - self._sequence_len + 1)]
+        return sequences
+
+
 class _LSTMEncoderDecoder(nn.Module):
 
     def __init__(
             self, n_dims: int, hidden_size: int, num_layers: int = 1) -> None:
         super(_LSTMEncoderDecoder, self).__init__()
-        self.encoder = nn.LSTM(
-            input_size=n_dims, hidden_size=hidden_size, num_layers=num_layers,
-        )
-        self.decoder = nn.LSTM(
-            input_size=n_dims, hidden_size=hidden_size, num_layers=num_layers,
-        )
+        self.encoder = nn.LSTM(input_size=n_dims, hidden_size=hidden_size,
+                               num_layers=num_layers)
+        self.decoder = nn.LSTM(input_size=n_dims, hidden_size=hidden_size,
+                               num_layers=num_layers)
         self.linear = nn.Linear(hidden_size, n_dims)
 
     def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
@@ -90,184 +262,6 @@ class _LSTMEncoderDecoder(nn.Module):
             _, dec_hidden = self.decoder(inputs.unsqueeze(1), dec_hidden)
 
         return outputs
-
-
-class LSTM_ED(BaseDetector):
-
-    def __init__(
-        self,
-        hidden_size: int = 32,
-        sequence_len: int = 20,
-        batch_size: int = 32,
-        threshold: float = 0.5,
-    ) -> None:
-
-        super(LSTM_ED, self).__init__()
-        self._n_dims: int = 0
-        self._sequence_len = sequence_len
-        self._batch_size: int = batch_size
-        self._hidden_size: int = hidden_size
-        self._error_dist: Optional[scipy.stats.multivariate_normal] = None
-        self._threshold: float = threshold
-        self.model: Optional[nn.Module] = None
-
-    def train(
-        self,
-        train_data: pd.DataFrame,
-        validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
-        validation_steps: int = 10,
-        epochs: int = 30,
-        verbose: bool = False,
-    ) -> None:
-        sequences = self._data_to_sequences(train_data)
-        # Train eval data split.
-        split = int(0.8 * len(sequences))
-        train_data_loader = self._get_train_data_loader(sequences[:split])
-        eval_data_loader = self._get_train_data_loader(sequences[split:])
-
-        # Initialize the model.
-        self._n_dims = sequences[0].shape[1]
-        self._init_model()
-
-        self._fit_model(train_data_loader, epochs, verbose)
-        self._fit_error_distribution(eval_data_loader)
-
-        if validation_data is not None:
-            self._optimize_prediction_threshold(
-                validation_data, validation_steps)
-
-    def _optimize_prediction_threshold(
-        self,
-        validation_data: Tuple[pd.DataFrame, pd.Series],
-        steps: int,
-    ) -> None:
-        data, labels = validation_data
-        scores = self.predict(data)
-        best_f1 = 0
-        best_threshold = 0
-        for threshold in np.linspace(np.min(scores), np.max(scores), steps):
-            anomalies = (scores < threshold).astype(np.int32)
-            f1_score = sklearn.metrics.f1_score(labels, anomalies)
-            if f1_score > best_f1:
-                best_f1 = f1_score
-                best_threshold = threshold
-
-        self._threshold = best_threshold
-
-    def _fit_model(self, train_data_loader, epochs, verbose):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
-        self._run_train_loop(epochs, optimizer, train_data_loader, verbose)
-
-    def _fit_error_distribution(self, data_loader: DataLoader) -> None:
-        """Fit multivariate gaussian distribution to a given sample using
-        maximum likelihood estimation method.
-
-        Source:
-          https://stackoverflow.com/questions/27230824/fit-multivariate-gaussian-distribution-to-a-given-dataset
-
-
-        :param sample:
-        :return:
-        """
-        error_vectors = self._compute_errors(data_loader)
-
-        means = np.mean(error_vectors, axis=0)
-        cov = np.cov(error_vectors, rowvar=False)
-
-        self._dist = functools.partial(
-            scipy.stats.multivariate_normal.pdf,
-            mean=means,
-            cov=cov,
-            allow_singular=True,
-        )
-
-    def _compute_errors(self, data_loader: DataLoader) -> List[np.ndarray]:
-        self.model.eval()
-        error_vectors = []
-        for inputs in data_loader:
-            inputs = inputs.float()
-            output = self.model.forward(inputs)
-            error = nn.L1Loss(reduce=False)(output, inputs)
-            error_vectors += list(error.view(-1, self._n_dims).detach().numpy())
-        return error_vectors
-
-    def _run_train_loop(
-        self, epochs: int, optimizer: torch.optim.Optimizer,
-        train_data_loader: DataLoader, verbose: bool,
-    ) -> None:
-        self.model.train()
-        for epoch in range(epochs):
-            epoch_loss = 0
-            for inputs in train_data_loader:
-                inputs = inputs.float()
-                optimizer.zero_grad()
-                output = self.model.forward(inputs)
-                loss = F.mse_loss(output, inputs)
-                epoch_loss += loss.item()
-                loss.backward()
-                optimizer.step()
-            if verbose:
-                print(f"Epoch {epoch} loss: "
-                      f"{epoch_loss / len(train_data_loader)}")
-
-    def _init_model(self) -> None:
-        self.model = _LSTMEncoderDecoder(
-            n_dims=self._n_dims,
-            hidden_size=self._hidden_size,
-        )
-
-    def _get_train_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
-        indices = np.random.permutation(len(sequences))
-        data_loader = DataLoader(
-            dataset=sequences,
-            batch_size=min(len(sequences), self._batch_size),
-            drop_last=True,
-            sampler=SubsetRandomSampler(indices),
-            pin_memory=True,
-        )
-        return data_loader
-
-    def _get_eval_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
-        data_loader = DataLoader(
-            dataset=sequences,
-            batch_size=self._batch_size,
-            drop_last=True,
-            pin_memory=True,
-        )
-        return data_loader
-
-    def _data_to_sequences(self, data: pd.DataFrame) -> List[np.ndarray]:
-        values = data.values
-        sequences = [values[i:i + self._sequence_len]
-                     for i
-                     in range(values.shape[0] - self._sequence_len + 1)]
-        return sequences
-
-    def predict(self, data: pd.DataFrame) -> np.ndarray:
-        sequences = self._data_to_sequences(data)
-        test_data_loader = self._get_eval_data_loader(sequences)
-
-        scores = []
-        self.model.eval()
-        for inputs in test_data_loader:
-            inputs = inputs.float()
-            outputs = self.model.forward(inputs)
-            error = nn.L1Loss(reduce=False)(outputs, inputs)
-            error = error.view(-1, data.shape[1]).detach().numpy()
-            score = self._dist(error)
-            scores.append(score.reshape(inputs.size(0), self._sequence_len))
-
-        scores = np.concatenate(scores)
-        lattice = np.zeros((self._sequence_len, data.shape[0]))
-        for i, score in enumerate(scores):
-            lattice[i % self._sequence_len, i:i + self._sequence_len] = score
-        scores = np.nanmean(lattice, axis=0)
-
-        return scores
-
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
-        scores = self.predict(data)
-        return (scores < self._threshold).astype(np.int32)
 
 
 if __name__ == '__main__':
