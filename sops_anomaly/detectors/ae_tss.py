@@ -79,7 +79,8 @@ class AutoEncoderTSS(BaseDetector):
         encoded_values = np.array(encoded_values)
 
         distances = [0] * self._window_size
-        distances += list(self.distance(encoded_values[:-1], encoded_values[1:]))
+        distances += list(
+            self.distance(encoded_values[:-1], encoded_values[1:]))
         return np.array(distances)
 
     def detect(
@@ -123,4 +124,3 @@ class AutoEncoderTSS(BaseDetector):
             if sum_dist >= threshold:
                 events_at.append(index)
         return events_at
-

@@ -56,7 +56,7 @@ def test_get_f1(predicted, targets, expected_f1):
     ([0, 0, 1, 1], [0, 0, 1, 1], 1.0),
     ([1, 1, 1, 1], [0, 0, 1, 1], 0.5),
 ))
-def test_get_f1(predicted, targets, expected_roc):
+def test_get_roc_auc(predicted, targets, expected_roc):
     result = Result(predicted, targets)
     assert math.isclose(result.roc_auc, expected_roc)
 

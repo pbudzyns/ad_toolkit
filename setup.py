@@ -23,6 +23,9 @@ REQUIREMENTS: dict = {
         'torch',
         'torchvision',
     ],
+    'lint': [
+        'flake8',
+    ],
     'test': [
         'pytest',
     ],

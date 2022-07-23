@@ -6,7 +6,7 @@ import numpy as np
 from nab.detectors.base import AnomalyDetector
 from nab.runner import Runner
 
-from sops_anomaly.detectors import BaseDetector, RandomDetector, AutoEncoder
+from sops_anomaly.detectors import RandomDetector, AutoEncoder
 
 
 # def nab_evaluator(anomaly_detector: BaseModel):
@@ -91,7 +91,8 @@ def set_thresholds(detectors: Dict[str, Any], thresholds_file: pathlib.Path):
 
 if __name__ == '__main__':
 
-    root_dir = (pathlib.Path("..").absolute().parent.parent / "nab_files").absolute()
+    root_dir = (
+        pathlib.Path("..").absolute().parent.parent / "nab_files").absolute()
     data_dir = root_dir / "data"
     results_dir = root_dir / "results"
     windows_file = root_dir / "labels" / "combined_windows.json"

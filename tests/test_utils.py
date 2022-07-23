@@ -41,7 +41,8 @@ def time_stamps(n_steps):
     (
         pd.DataFrame(data=[[1, 2], [3, 4], [5, 6], [7, 8]]),
         3,
-        pd.DataFrame(data=[[1, 2, 3, 4, 5, 6], [3, 4, 5, 6, 7, 8]], index=[2, 3]),
+        pd.DataFrame(data=[[1, 2, 3, 4, 5, 6], [3, 4, 5, 6, 7, 8]],
+                     index=[2, 3]),
     ),
 ))
 def test_window_data_expected_output(data, window_size, expected_output):

@@ -3,7 +3,7 @@ from typing import Optional
 import pandas as pd
 import pytest
 
-from sops_anomaly.datasets import MNIST, KddCup
+from sops_anomaly.datasets import KddCup
 from sops_anomaly.datasets import SupervisedDataset
 
 

@@ -33,7 +33,9 @@ class Visualizer:
         predictions = self._ad.predict(self._data)
         anomalies = self._ad.detect(self._data)
         print("Predict on: ", self._data.shape)
-        print("Predictions: ", predictions.shape, "range", np.min(predictions),"-",np.max(predictions))
+        print("Predictions: ", predictions.shape,
+              "range", np.min(predictions),
+              "-", np.max(predictions))
         print("Anomalies: ", len(anomalies))
 
         self._plot(anomalies)
@@ -49,7 +51,8 @@ class Visualizer:
 
 
 if __name__ == '__main__':
-    master_url_root = "https://raw.githubusercontent.com/numenta/NAB/master/data/"
+    master_url_root = (
+        "https://raw.githubusercontent.com/numenta/NAB/master/data/")
 
     df_small_noise_url_suffix = "artificialNoAnomaly/art_daily_small_noise.csv"
     df_small_noise_url = master_url_root + df_small_noise_url_suffix

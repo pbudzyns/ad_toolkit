@@ -53,4 +53,3 @@ def test_mnist_get_test_samples(mnist: MNIST, n_samples):
         assert len(x_test) == total_samples
     else:
         assert len(x_test) == n_samples
-

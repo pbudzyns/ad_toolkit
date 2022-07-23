@@ -8,7 +8,6 @@ References:
       https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_ad.py
 
 """
-import functools
 from typing import Optional, Tuple
 
 import numpy as np

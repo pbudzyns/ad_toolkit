@@ -1,9 +1,10 @@
 venv/
 .idea/
-nab_files/
-kdd_cup_1999/
+data/nab_files/
+data/kdd_cup_1999/
 *.pyc
 .ipynb_checkpoints/
 .egg-info/
 sops_anomaly.egg-info/
 results/
+.idea
