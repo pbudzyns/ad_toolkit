@@ -9,6 +9,9 @@ with (HERE / 'README.md').open('rt') as fh:
 
 REQUIREMENTS: dict = {
     'core': [
+        'zhusuan @ git+https://github.com/thu-ml/zhusuan.git',
+        'tfsnippet @ git+https://github.com/haowen-xu/tfsnippet.git@v0.1.2',
+        'donut @ git+https://github.com/korepwx/donut.git',
         'dataclasses',
         'numpy',
         'matplotlib',
@@ -16,6 +19,7 @@ REQUIREMENTS: dict = {
         'requests',
         'scipy',
         'scikit-learn',
+        'tensorflow<=1.15.1',
         'torch',
         'torchvision',
     ],

@@ -38,13 +38,15 @@ class Donut(BaseDetector):
         self._predictors: List[_DonutPredictor] = []
         self._model_counter = 0
 
+    def __del__(self):
+        for sess in self._sessions:
+            sess.close()
+
     def train(self, train_data: pd.DataFrame, epochs: int = 30):
         # train_data = window_data(train_data, self._window_size)
         timestamp = np.array(train_data.index)
         for _, column in train_data.items():
             values = np.array(column)
-            session = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-
             labels = np.zeros_like(values, dtype=np.int32)
             timestamp, missing, (values, labels) = complete_timestamp(timestamp,
                                                                       (values,
@@ -52,6 +54,8 @@ class Donut(BaseDetector):
             train_values, mean, std = standardize_kpi(
                 values, excludes=np.logical_or(labels, missing))
 
+            session = tf.Session(
+                config=tf.ConfigProto(allow_soft_placement=True))
             model, model_vs = self._build_model()
             trainer = _DonutTrainer(
                 model=model,
@@ -59,10 +63,9 @@ class Donut(BaseDetector):
                 max_epoch=epochs,
                 missing_data_injection_rate=0.0,
             )
-            # predictor = _DonutPredictor(model)
-
             with session.as_default():
-                trainer.fit(train_values, labels, missing, mean, std, valid_portion=0.25)
+                trainer.fit(train_values, labels, missing,
+                            mean, std, valid_portion=0.25)
 
             self._models.append(model)
             self._means.append(mean)
