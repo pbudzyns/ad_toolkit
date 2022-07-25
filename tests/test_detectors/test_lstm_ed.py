@@ -12,8 +12,9 @@ datasets = (
 
 
 @pytest.mark.parametrize("data", datasets)
-def test_train_lstm_ed(data):
-    lstm = LSTM_ED(hidden_size=200)
+@pytest.mark.parametrize("use_gpu", (True, False))
+def test_train_lstm_ed(data, use_gpu):
+    lstm = LSTM_ED(hidden_size=200, use_gpu=use_gpu)
     lstm.train(data, epochs=2)
 
 
@@ -27,10 +28,10 @@ def test_train_lstm_ed_w_validation(data):
     lstm.train(data, epochs=2, validation_data=validation)
 
 
-# @pytest.mark.skip("Not implemented yet")
 @pytest.mark.parametrize("data", datasets)
-def test_train_predict_lstm_ed(data):
-    lstm = LSTM_ED()
+@pytest.mark.parametrize("use_gpu", (True, False))
+def test_train_predict_lstm_ed(data, use_gpu):
+    lstm = LSTM_ED(use_gpu=use_gpu)
     lstm.train(data, epochs=2)
 
     p = lstm.predict(data)

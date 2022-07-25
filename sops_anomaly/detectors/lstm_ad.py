@@ -24,10 +24,8 @@ from sops_anomaly.detectors.base_detector import BaseDetector
 class LSTM_AD(BaseDetector):
 
     def __init__(
-        self,
-        window_size: int = 10,
-        hidden_size: int = 32,
-        threshold: float = 0.9,
+        self, window_size: int = 10, hidden_size: int = 32,
+        threshold: float = 0.9, use_gpu: bool = False,
     ) -> None:
         """
 
@@ -43,6 +41,8 @@ class LSTM_AD(BaseDetector):
         self._d_size: int = 0
         # Multivariate gaussian scipy.stats.multivariate_gaussian
         self._error_dist = None
+        self._device: torch.device = torch.device(
+            'cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
 
     def train(
         self,
@@ -109,13 +109,13 @@ class LSTM_AD(BaseDetector):
             input_size=self._d_size,
             output_size=self._l_preds,
             hidden_size=self._hidden_size,
+            device=self._device,
         )
         self.model.double()
         self._error_dist = _ErrorDistribution(self._d_size, self._l_preds)
 
-    @classmethod
-    def _to_tensor(cls, array: np.ndarray) -> torch.Tensor:
-        return torch.from_numpy(array.astype(np.float64))
+    def _to_tensor(self, array: np.ndarray) -> torch.Tensor:
+        return torch.from_numpy(array.astype(np.float64)).to(self._device)
 
     def _transform_train_data_target(
             self, data: pd.DataFrame) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -195,7 +195,7 @@ class LSTM_AD(BaseDetector):
         self.model.eval()
         # Shape: (batch_size, time_steps, d, l)
         outputs = self._get_model_outputs(self._to_tensor(eval_data))
-        self._error_dist.fit(outputs.detach().numpy(), eval_targets)
+        self._error_dist.fit(outputs.cpu().detach().numpy(), eval_targets)
 
     def _train_model(
         self, train_data: torch.Tensor, train_targets: torch.Tensor,
@@ -221,7 +221,8 @@ class LSTM_AD(BaseDetector):
 
     def _get_errors(
             self, outputs: torch.Tensor, targets: np.ndarray) -> np.ndarray:
-        errors = self._error_dist.get_errors(outputs.detach().numpy(), targets)
+        errors = self._error_dist.get_errors(
+            outputs.cpu().detach().numpy(), targets)
         errors = errors.reshape((errors.shape[0], self._l_preds * self._d_size))
         return errors
 
@@ -237,24 +238,32 @@ class LSTM_AD(BaseDetector):
 class _LSTM(nn.Module):
     def __init__(
         self, input_size: int, output_size: int, hidden_size: int,
-        batch_size: int = 1,
+        device: torch.device, batch_size: int = 1,
     ) -> None:
         super().__init__()
+        self._device = device
         self._d_size = input_size
         self._l_preds = output_size
         self.batch_size = batch_size
         self.hidden_size = hidden_size
-        self.lstm_layer_1 = nn.LSTMCell(input_size, self.hidden_size)
-        self.lstm_layer_2 = nn.LSTMCell(self.hidden_size, self.hidden_size)
+        self.lstm_layer_1 = nn.LSTMCell(
+            input_size, self.hidden_size)
+        self.lstm_layer_2 = nn.LSTMCell(
+            self.hidden_size, self.hidden_size)
         self.linear = nn.Linear(
             self.hidden_size, input_size * output_size)
+        self.to(self._device)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         outputs = []
-        h_t = torch.zeros(self.batch_size, self.hidden_size).double()
-        c_t = torch.zeros(self.batch_size, self.hidden_size).double()
-        h_t2 = torch.zeros(self.batch_size, self.hidden_size).double()
-        c_t2 = torch.zeros(self.batch_size, self.hidden_size).double()
+        h_t = torch.zeros(
+            self.batch_size, self.hidden_size).double().to(self._device)
+        c_t = torch.zeros(
+            self.batch_size, self.hidden_size).double().to(self._device)
+        h_t2 = torch.zeros(
+            self.batch_size, self.hidden_size).double().to(self._device)
+        c_t2 = torch.zeros(
+            self.batch_size, self.hidden_size).double().to(self._device)
 
         for input_t in inputs.chunk(inputs.size(1), dim=1):
             h_t, c_t = self.lstm_layer_1(input_t.squeeze(dim=1), (h_t, c_t))

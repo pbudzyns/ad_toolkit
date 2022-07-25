@@ -30,16 +30,19 @@ class LSTM_ED(BaseDetector):
         sequence_len: int = 20,
         hidden_size: int = 32,
         threshold: float = 0.5,
+        use_gpu: bool = False,
     ) -> None:
 
         super(LSTM_ED, self).__init__()
+        self.model: Optional[nn.Module] = None
         self._n_dims: int = 0
         self._sequence_len = sequence_len
         self._batch_size: Optional[int] = None
         self._hidden_size: int = hidden_size
         self._error_dist: Optional[scipy.stats.multivariate_normal] = None
         self._threshold: float = threshold
-        self.model: Optional[nn.Module] = None
+        self._device: torch.device = torch.device(
+            'cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
 
     def train(
         self,
@@ -79,7 +82,7 @@ class LSTM_ED(BaseDetector):
             inputs = inputs.float()
             outputs = self.model.forward(inputs)
             error = F.l1_loss(outputs, inputs, reduction='none')
-            error = error.view(-1, data.shape[1]).detach().numpy()
+            error = error.view(-1, data.shape[1]).cpu().detach().numpy()
             score = -self._dist(error)
             scores.append(score.reshape(inputs.size(0), self._sequence_len))
 
@@ -160,13 +163,15 @@ class LSTM_ED(BaseDetector):
             inputs = inputs.float()
             output = self.model.forward(inputs)
             error = F.l1_loss(output, inputs, reduction='none')
-            error_vectors += list(error.view(-1, self._n_dims).detach().numpy())
+            error_vectors += list(
+                error.view(-1, self._n_dims).cpu().detach().numpy())
         return error_vectors
 
     def _init_model(self) -> None:
         self.model = _LSTMEncoderDecoder(
             n_dims=self._n_dims,
             hidden_size=self._hidden_size,
+            device=self._device,
         )
 
     def _get_train_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
@@ -176,7 +181,7 @@ class LSTM_ED(BaseDetector):
             batch_size=min(len(sequences), self._batch_size),
             drop_last=True,
             sampler=SubsetRandomSampler(indices),
-            pin_memory=True,
+            # pin_memory=True,
         )
         return data_loader
 
@@ -185,28 +190,34 @@ class LSTM_ED(BaseDetector):
             dataset=sequences,
             batch_size=self._batch_size,
             drop_last=True,
-            pin_memory=True,
+            # pin_memory=True,
         )
         return data_loader
 
     def _data_to_sequences(self, data: pd.DataFrame) -> List[np.ndarray]:
         values = data.values
-        sequences = [values[i:i + self._sequence_len]
-                     for i
-                     in range(values.shape[0] - self._sequence_len + 1)]
+        sequences = [
+            torch.Tensor(values[i:i + self._sequence_len]).to(self._device)
+            for i
+            in range(values.shape[0] - self._sequence_len + 1)
+        ]
         return sequences
 
 
 class _LSTMEncoderDecoder(nn.Module):
 
     def __init__(
-            self, n_dims: int, hidden_size: int, num_layers: int = 1) -> None:
+        self, n_dims: int, hidden_size: int, device: torch.device,
+        num_layers: int = 1,
+    ) -> None:
         super(_LSTMEncoderDecoder, self).__init__()
         self.encoder = nn.LSTM(input_size=n_dims, hidden_size=hidden_size,
                                num_layers=num_layers)
         self.decoder = nn.LSTM(input_size=n_dims, hidden_size=hidden_size,
                                num_layers=num_layers)
         self.linear = nn.Linear(hidden_size, n_dims)
+        self._device = device
+        self.to(self._device)
 
     def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
         """LSTM based encoder-decoder architecture uses hidden state returned
@@ -248,7 +259,7 @@ class _LSTMEncoderDecoder(nn.Module):
         :param dec_hidden:
         :return:
         """
-        outputs = torch.Tensor(input_tensor.shape).zero_()
+        outputs = torch.Tensor(input_tensor.shape).zero_().to(self._device)
         for i in reversed(range(outputs.shape[1])):
             # Projection hidden state to predicted data point.
             outputs[:, i, :] = self.linear(dec_hidden[0].squeeze(1))

@@ -15,8 +15,10 @@ datasets = (
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 5, 10))
 @pytest.mark.parametrize("hidden_size", (10, 20, 30))
-def test_train_lstm(data, window_size, hidden_size):
-    lstm = LSTM_AD(window_size=window_size, hidden_size=hidden_size)
+@pytest.mark.parametrize("use_gpu", (True, False))
+def test_train_lstm(data, window_size, hidden_size, use_gpu):
+    lstm = LSTM_AD(window_size=window_size, hidden_size=hidden_size,
+                   use_gpu=use_gpu)
     lstm.train(data, epochs=2)
 
 
@@ -31,8 +33,9 @@ def test_train_lstm_w_validation(data):
 
 
 @pytest.mark.parametrize("data", datasets)
-def test_train_predict_lstm(data):
-    lstm = LSTM_AD()
+@pytest.mark.parametrize("use_gpu", (True, False))
+def test_train_predict_lstm(data, use_gpu):
+    lstm = LSTM_AD(use_gpu=use_gpu)
     lstm.train(data, epochs=2)
 
     p = lstm.predict(data)

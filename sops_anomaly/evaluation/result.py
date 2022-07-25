@@ -81,6 +81,7 @@ class Result:
     def __repr__(self) -> str:
         return (
             f"Result(accuracy={self.accuracy},\n"
+            f"\t(tp, fp, tn, fp)={(self.tp,self.fp,self.tn,self.fp)},\n"
             f"\tprecision={self.precision},\n"
             f"\trecall={self.recall},\n"
             f"\tf1={self.f1},\n"

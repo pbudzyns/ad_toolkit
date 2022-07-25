@@ -44,8 +44,9 @@ def test_build_custom_network_auto_encoder(layers):
 
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 3, 5))
-def test_train_predict_auto_encoder(data, window_size):
-    ae = AutoEncoder(window_size=window_size)
+@pytest.mark.parametrize("use_gpu", (False, True))
+def test_train_predict_auto_encoder(data, window_size, use_gpu):
+    ae = AutoEncoder(window_size=window_size, use_gpu=use_gpu)
     ae.train(data, epochs=2)
 
     p = ae.predict(data)
