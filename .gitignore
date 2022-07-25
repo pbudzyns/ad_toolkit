@@ -8,3 +8,4 @@ data/kdd_cup_1999/
 sops_anomaly.egg-info/
 results/
 .idea
+data/

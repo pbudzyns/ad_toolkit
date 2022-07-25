@@ -1,5 +1,4 @@
 import dataclasses
-from typing import List, Union
 
 import numpy as np
 import sklearn.metrics
@@ -10,12 +9,34 @@ class Result:
     """Binary classification results representation. Allows for easy
     representation of basic metrics.
     """
-    y_predicted: Union[List[int], np.ndarray]
-    y_labels: Union[List[int], np.ndarray]
+    y_predicted: np.ndarray
+    y_labels: np.ndarray
 
     @classmethod
     def _round(cls, number: float) -> float:
         return round(number, 2)
+
+    @property
+    def tp(self) -> int:
+        """Computes a number of true positives."""
+        return self.y_predicted[self.y_labels == 1].sum()
+
+    @property
+    def fp(self) -> int:
+        """Computes a number of false positives."""
+        return self.y_predicted[self.y_labels == 0].sum()
+
+    @property
+    def tn(self) -> int:
+        """Computes a number of true negatives."""
+        x = self.y_predicted[self.y_labels == 0]
+        return len(x) - x.sum()
+
+    @property
+    def fn(self) -> int:
+        """Computes a number of false negatives."""
+        x = self.y_predicted[self.y_labels == 1]
+        return len(x) - x.sum()
 
     @property
     def recall(self) -> float:
