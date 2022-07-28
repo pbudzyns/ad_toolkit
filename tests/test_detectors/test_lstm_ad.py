@@ -22,6 +22,18 @@ def test_train_lstm(data, window_size, hidden_size, use_gpu):
     lstm.train(data, epochs=2)
 
 
+@pytest.mark.parametrize("window_size", (5, 10))
+@pytest.mark.parametrize("hidden_size", (10, 20))
+@pytest.mark.parametrize("use_gpu", (True, False))
+def test_train_lstm_with_slices(window_size, hidden_size, use_gpu):
+    data = pd.DataFrame(np.random.random((5000, 5)))
+    lstm = LSTM_AD(window_size=window_size, hidden_size=hidden_size,
+                   use_gpu=use_gpu)
+    lstm.train_with_slices(data, slice_len=100, epochs=3)
+    scores = lstm.predict(data)
+    assert len(scores) == len(data)
+
+
 @pytest.mark.parametrize("data", datasets)
 def test_train_lstm_w_validation(data):
     lstm = LSTM_AD()

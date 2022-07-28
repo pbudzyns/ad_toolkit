@@ -9,6 +9,7 @@ References:
 
 """
 from typing import Optional, Tuple
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -63,6 +64,9 @@ class LSTM_AD(BaseDetector):
         :param verbose:
         :return:
         """
+        if len(train_data) > 1e4:
+            warnings.warn(
+                "Input very long, consider using train_with_slices.")
         # Train eval data split.
         # Shape: (time_steps, d)
         split = int(0.7 * len(train_data))
@@ -71,7 +75,7 @@ class LSTM_AD(BaseDetector):
 
         # Initialize model.
         self._d_size = train_data.shape[-1]
-        self._initialize_model()
+        self._initialize_model_if_needed()
         # Fit model to train data.
         self._fit_model(train_df, epochs, learning_rate, verbose)
         # Compute error distribution using eval data.
@@ -81,6 +85,47 @@ class LSTM_AD(BaseDetector):
             # Use validation data to compute optimal anomaly threshold.
             self._optimize_prediction_threshold(
                 validation_data, validation_steps)
+
+    def train_with_slices(
+        self,
+        train_data: pd.DataFrame,
+        slice_len: int = 1000,
+        # validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
+        # validation_steps: int = 10,
+        epochs: int = 3,
+        learning_rate: float = 1e-4,
+        verbose: bool = False,
+    ) -> None:
+        """Workaround for very long time series."""
+        errors = None
+        # Initialize model.
+        self._d_size = train_data.shape[-1]
+        self._initialize_model_if_needed()
+        for epoch in range(epochs):
+            for i in range(len(train_data) // slice_len):
+                data_slice = train_data[i*slice_len:(i+1)*slice_len]
+                split = int(0.7 * len(data_slice))
+                train_slice = data_slice[:split]
+                eval_slice = data_slice[split:]
+
+                # Fit model to train data.
+                self._fit_model(train_slice, 1, learning_rate, verbose=verbose)
+
+                eval_data, eval_targets = self._transform_eval_data_target(
+                    eval_slice)
+                self.model.eval()
+                # Shape: (batch_size, time_steps, d, l)
+                outputs = self._get_model_outputs(self._to_tensor(eval_data))
+                error_slice = self._error_dist.get_errors(
+                    outputs.cpu().detach().numpy(),
+                    eval_targets,
+                )
+                if errors is None:
+                    errors = error_slice
+                else:
+                    errors = np.concatenate((errors, error_slice))
+
+        self._error_dist.fit_multivariate_gauss(errors)
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         """Return anomaly scores for data points.
@@ -104,7 +149,9 @@ class LSTM_AD(BaseDetector):
         scores = self.predict(data)
         return (scores < self._threshold).astype(np.int32)
 
-    def _initialize_model(self) -> None:
+    def _initialize_model_if_needed(self) -> None:
+        if self.model is not None:
+            return
         self.model = _LSTM(
             input_size=self._d_size,
             output_size=self._l_preds,
@@ -318,22 +365,21 @@ class _ErrorDistribution:
             errors += [output[:, self._l_preds - 1 - i:-1 - i, :, i]]
         errors = np.stack(errors, axis=3)
         errors = target[..., np.newaxis] - errors
-        return errors.squeeze(axis=0)
+        # Shape: (batch_size, time_steps, d, l)
+        errors = errors.squeeze(axis=0)
+        # Shape: (time_steps, d*l)
+        errors = errors.reshape((errors.shape[0], self._l_preds * self._d_size))
+        return errors
 
     def fit(self, outputs: np.ndarray, targets: np.ndarray) -> None:
         self._fit_error_distribution(outputs, targets)
 
     def _fit_error_distribution(
             self, outputs: np.ndarray, eval_targets: np.ndarray) -> None:
-        # Shape: (batch_size, time_steps, d, l)
         errors = self.get_errors(outputs, eval_targets)
-        # Shape: (time_steps, d*l)
-        errors = errors.reshape((errors.shape[0], self._l_preds * self._d_size))
-        self.means, self.cov = self._fit_multivariate_gauss(errors)
+        self.fit_multivariate_gauss(errors)
 
-    @classmethod
-    def _fit_multivariate_gauss(
-            cls, sample: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def fit_multivariate_gauss(self, sample: np.ndarray) -> None:
         """Fit multivariate gaussian distribution to a given sample using
         maximum likelihood estimation method.
 
@@ -345,4 +391,4 @@ class _ErrorDistribution:
         """
         mean = np.mean(sample, axis=0)
         cov = np.cov(sample, rowvar=False)
-        return mean, cov
+        self.means, self.cov = mean, cov
