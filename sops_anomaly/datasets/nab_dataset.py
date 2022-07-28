@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from sops_anomaly.datasets.dataset import BaseDataset
+from sops_anomaly.evaluation import TimeSeriesPlot
 
 URL_ROOT = "https://raw.githubusercontent.com/numenta/NAB/master/"
 
@@ -15,8 +16,6 @@ URL_ROOT = "https://raw.githubusercontent.com/numenta/NAB/master/"
 class NabDataset(BaseDataset):
 
     _datasets: Optional[Dict] = None
-    _anomaly_colors = (
-        'red', 'magenta', 'green', 'navy', 'dodgerblue', 'orange', 'brown')
 
     def __init__(
         self,
@@ -89,63 +88,11 @@ class NabDataset(BaseDataset):
         show_legend: bool = True,
         anomaly_style_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
-        ax = plt.gca()
-        fig = plt.gcf()
-
         x, labels = self.data
-        x_lim, y_lim = self._get_x_y_lim(vertical_margin, x)
-        self._plot_known_anomalies(labels, y_lim)
-        if anomalies is not None:
-            self._plot_predicted_anomalies(
-                anomalies, labels, y_lim, anomaly_style_kwargs)
-        if show_legend:
-            plt.legend()
-
-        plt.plot(x)
-        ax.set_ylim(y_lim)
-        ax.set_xlim(x_lim)
-        fig.set_size_inches(10, 5)
-
-    @classmethod
-    def _plot_predicted_anomalies(
-            cls, anomalies, labels, y_lim, anomaly_style_kwargs) -> None:
-        style = {'ls': '-.', 'lw': 0.5, 'alpha': 0.1}
-        if anomaly_style_kwargs is not None:
-            style.update(anomaly_style_kwargs)
-        for i, (name, points) in enumerate(anomalies.items()):
-            anomalies_idx = labels.index[points.astype(bool)]
-            color = cls._anomaly_colors[i % len(cls._anomaly_colors)]
-            plt.vlines(
-                x=anomalies_idx,
-                ymin=y_lim[0],
-                ymax=y_lim[1],
-                colors=color,
-                label=name,
-                **style,
-            )
-
-    @classmethod
-    def _get_x_y_lim(cls, vertical_margin, x):
-        y_lim = (
-            float(np.min(x) - vertical_margin),
-            float(np.max(x) + vertical_margin),
-        )
-        x_lim = (
-            np.min(x.index),
-            np.max(x.index),
-        )
-        return x_lim, y_lim
-
-    @classmethod
-    def _plot_known_anomalies(cls, labels, y_lim):
-        anomalous_labels = labels[labels == 1].index
-        plt.vlines(
-            x=anomalous_labels,
-            ymin=y_lim[0],
-            ymax=y_lim[1],
-            colors='#eda8a6',
-            ls='-',
-            lw=2,
+        TimeSeriesPlot.plot(
+            x, labels=labels, anomalies=anomalies,
+            vertical_margin=vertical_margin, show_legend=show_legend,
+            anomaly_style_kwargs=anomaly_style_kwargs,
         )
 
 

@@ -37,7 +37,6 @@ class LSTM_ED(BaseDetector):
         self.model: Optional[nn.Module] = None
         self._n_dims: int = 0
         self._sequence_len = sequence_len
-        self._batch_size: Optional[int] = None
         self._hidden_size: int = hidden_size
         self._error_dist: Optional[scipy.stats.multivariate_normal] = None
         self._threshold: float = threshold
@@ -54,12 +53,13 @@ class LSTM_ED(BaseDetector):
         batch_size: int = 32,
         verbose: bool = False,
     ) -> None:
-        self._batch_size = batch_size
         sequences = self._data_to_sequences(train_data)
         # Train eval data split.
         split = int(0.8 * len(sequences))
-        train_data_loader = self._get_train_data_loader(sequences[:split])
-        eval_data_loader = self._get_train_data_loader(sequences[split:])
+        train_data_loader = self._get_train_data_loader(
+            sequences[:split], batch_size)
+        eval_data_loader = self._get_train_data_loader(
+            sequences[split:], batch_size)
 
         # Initialize the model.
         self._n_dims = sequences[0].shape[1]
@@ -72,9 +72,9 @@ class LSTM_ED(BaseDetector):
             self._optimize_prediction_threshold(
                 validation_data, validation_steps)
 
-    def predict(self, data: pd.DataFrame) -> np.ndarray:
+    def predict(self, data: pd.DataFrame, batch_size: int = 32) -> np.ndarray:
         sequences = self._data_to_sequences(data)
-        test_data_loader = self._get_eval_data_loader(sequences)
+        test_data_loader = self._get_eval_data_loader(sequences, batch_size)
 
         scores = []
         self.model.eval()
@@ -174,23 +174,25 @@ class LSTM_ED(BaseDetector):
             device=self._device,
         )
 
-    def _get_train_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
+    @classmethod
+    def _get_train_data_loader(
+            cls, sequences: List[np.ndarray], batch_size: int) -> DataLoader:
         indices = np.random.permutation(len(sequences))
         data_loader = DataLoader(
             dataset=sequences,
-            batch_size=min(len(sequences), self._batch_size),
+            batch_size=min(len(sequences), batch_size),
             drop_last=True,
             sampler=SubsetRandomSampler(indices),
-            # pin_memory=True,
         )
         return data_loader
 
-    def _get_eval_data_loader(self, sequences: List[np.ndarray]) -> DataLoader:
+    @classmethod
+    def _get_eval_data_loader(
+            cls, sequences: List[np.ndarray], batch_size: int) -> DataLoader:
         data_loader = DataLoader(
             dataset=sequences,
-            batch_size=self._batch_size,
+            batch_size=min(len(sequences), batch_size),
             drop_last=True,
-            # pin_memory=True,
         )
         return data_loader
 

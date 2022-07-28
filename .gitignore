@@ -9,3 +9,4 @@ sops_anomaly.egg-info/
 results/
 .idea
 data/
+notebooks/esa

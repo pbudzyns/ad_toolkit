@@ -140,25 +140,6 @@ class VariationalAutoEncoder(BaseDetector):
         self.max_error: float = 0.0
         self.model: Optional[nn.Module] = None
 
-    def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
-        return window_data(data, self._window_size)
-
-    def _data_to_tensors(self, data: pd.DataFrame) -> List[torch.Tensor]:
-        tensors = [torch.Tensor(row).to(self._device)
-                   for _, row
-                   in data.iterrows()]
-        return tensors
-
-    def _compute_threshold(self, data: List[torch.Tensor]) -> float:
-        scores = []
-        self.model.eval()
-        with torch.no_grad():
-            for sample in data:
-                rec, _, _, _ = self.model.forward(sample)
-                scores.append(F.mse_loss(rec, sample).item())
-        scores = np.array(scores)
-        return np.max(scores)
-
     def train(
         self,
         train_data: pd.DataFrame,
@@ -185,12 +166,50 @@ class VariationalAutoEncoder(BaseDetector):
             batch_size=min(len(train_data), batch_size),
             drop_last=True,
             sampler=SubsetRandomSampler(indices),
-            # pin_memory=True,
         )
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self._run_train_loop(optimizer, data_loader, epochs, verbose)
         self.max_error = self._compute_threshold(eval_data)
+
+    def predict(self, data: pd.DataFrame) -> np.ndarray:
+        data = self._transform_data(data)
+        data = self._data_to_tensors(data)
+        scores = [0.0] * (self._window_size - 1)    # To match input length.
+        self.model.eval()
+        with torch.no_grad():
+            for x in data:
+                mu, log_var = self.model.encode(x)
+                score = 0
+                for i in range(self._l_samples):
+                    z = self.model.reparametrize(mu, log_var)
+                    x_hat = self.model.decode(z)
+                    score += F.mse_loss(x_hat, x).item()
+                scores.append(score / self._l_samples)
+        return np.array(scores)
+
+    def detect(self, data: pd.DataFrame) -> np.ndarray:
+        scores = self.predict(data)
+        return (scores >= self._threshold * self.max_error).astype(np.int32)
+
+    def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        return window_data(data, self._window_size)
+
+    def _data_to_tensors(self, data: pd.DataFrame) -> List[torch.Tensor]:
+        tensors = [torch.Tensor(row).to(self._device)
+                   for _, row
+                   in data.iterrows()]
+        return tensors
+
+    def _compute_threshold(self, data: List[torch.Tensor]) -> float:
+        scores = []
+        self.model.eval()
+        with torch.no_grad():
+            for sample in data:
+                rec, _, _, _ = self.model.forward(sample)
+                scores.append(F.mse_loss(rec, sample).item())
+        scores = np.array(scores)
+        return np.max(scores)
 
     def _run_train_loop(self, optimizer, data_loader, epochs, verbose):
         self.model.train()
@@ -215,23 +234,3 @@ class VariationalAutoEncoder(BaseDetector):
 
     def sample(self) -> np.ndarray:
         return self.model.sample()
-
-    def predict(self, data: pd.DataFrame) -> np.ndarray:
-        data = self._transform_data(data)
-        data = self._data_to_tensors(data)
-        scores = [0.0] * (self._window_size - 1)    # To match input length.
-        self.model.eval()
-        with torch.no_grad():
-            for x in data:
-                mu, log_var = self.model.encode(x)
-                score = 0
-                for i in range(self._l_samples):
-                    z = self.model.reparametrize(mu, log_var)
-                    x_hat = self.model.decode(z)
-                    score += F.mse_loss(x_hat, x).item()
-                scores.append(score / self._l_samples)
-        return np.array(scores)
-
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
-        scores = self.predict(data)
-        return (scores >= self._threshold * self.max_error).astype(np.int32)

@@ -201,7 +201,6 @@ class LSTM_AD(BaseDetector):
         self, train_data: torch.Tensor, train_targets: torch.Tensor,
         epochs: int, learning_rate: float, verbose: bool,
     ) -> None:
-
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.model.train()
         for epoch in range(epochs):
