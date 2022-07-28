@@ -85,7 +85,7 @@ class NabDataset(BaseDataset):
         self,
         anomalies: Optional[Dict[str, np.ndarray]] = None,
         vertical_margin: int = 10,
-        show_legend: bool = True,
+        show_legend: bool = False,
         anomaly_style_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         x, labels = self.data
