@@ -8,6 +8,7 @@ References:
       https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_ad.py
 
 """
+import math
 from typing import Optional, Tuple
 import warnings
 
@@ -75,7 +76,7 @@ class LSTM_AD(BaseDetector):
 
         # Initialize model.
         self._d_size = train_data.shape[-1]
-        self._initialize_model_if_needed()
+        self._init_model_if_needed()
         # Fit model to train data.
         self._fit_model(train_df, epochs, learning_rate, verbose)
         # Compute error distribution using eval data.
@@ -90,8 +91,6 @@ class LSTM_AD(BaseDetector):
         self,
         train_data: pd.DataFrame,
         slice_len: int = 1000,
-        # validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
-        # validation_steps: int = 10,
         epochs: int = 3,
         learning_rate: float = 1e-4,
         verbose: bool = False,
@@ -100,8 +99,10 @@ class LSTM_AD(BaseDetector):
         errors = None
         # Initialize model.
         self._d_size = train_data.shape[-1]
-        self._initialize_model_if_needed()
+        self._init_model_if_needed()
         for epoch in range(epochs):
+            if verbose:
+                print(f"---> Starting {epoch} with data slices.")
             for i in range(len(train_data) // slice_len):
                 data_slice = train_data[i*slice_len:(i+1)*slice_len]
                 split = int(0.7 * len(data_slice))
@@ -109,7 +110,7 @@ class LSTM_AD(BaseDetector):
                 eval_slice = data_slice[split:]
 
                 # Fit model to train data.
-                self._fit_model(train_slice, 1, learning_rate, verbose=verbose)
+                self._fit_model(train_slice, 1, learning_rate, verbose=False)
 
                 eval_data, eval_targets = self._transform_eval_data_target(
                     eval_slice)
@@ -124,6 +125,10 @@ class LSTM_AD(BaseDetector):
                     errors = error_slice
                 else:
                     errors = np.concatenate((errors, error_slice))
+
+                if verbose:
+                    p = max(1.0, (i+1) * slice_len / len(train_data))
+                    print(f"... {math.floor(p * 100)}% processed")
 
         self._error_dist.fit_multivariate_gauss(errors)
 
@@ -149,7 +154,7 @@ class LSTM_AD(BaseDetector):
         scores = self.predict(data)
         return (scores < self._threshold).astype(np.int32)
 
-    def _initialize_model_if_needed(self) -> None:
+    def _init_model_if_needed(self) -> None:
         if self.model is not None:
             return
         self.model = _LSTM(

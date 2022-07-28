@@ -63,7 +63,7 @@ class LSTM_ED(BaseDetector):
 
         # Initialize the model.
         self._n_dims = sequences[0].shape[1]
-        self._init_model()
+        self._init_model_if_needed()
 
         self._fit_model(train_data_loader, epochs, learning_rate, verbose)
         self._fit_error_distribution(eval_data_loader)
@@ -79,7 +79,7 @@ class LSTM_ED(BaseDetector):
         scores = []
         self.model.eval()
         for inputs in test_data_loader:
-            inputs = inputs.float()
+            inputs = inputs.float().to(self._device)
             outputs = self.model.forward(inputs)
             error = F.l1_loss(outputs, inputs, reduction='none')
             error = error.view(-1, data.shape[1]).cpu().detach().numpy()
@@ -122,7 +122,7 @@ class LSTM_ED(BaseDetector):
         for epoch in range(epochs):
             epoch_loss = 0
             for inputs in train_data_loader:
-                inputs = inputs.float()
+                inputs = inputs.float().to(self._device)
                 optimizer.zero_grad()
                 output = self.model.forward(inputs)
                 loss = F.mse_loss(output, inputs, reduction='sum')
@@ -160,14 +160,16 @@ class LSTM_ED(BaseDetector):
         self.model.eval()
         error_vectors = []
         for inputs in data_loader:
-            inputs = inputs.float()
+            inputs = inputs.float().to(self._device)
             output = self.model.forward(inputs)
             error = F.l1_loss(output, inputs, reduction='none')
             error_vectors += list(
                 error.view(-1, self._n_dims).cpu().detach().numpy())
         return error_vectors
 
-    def _init_model(self) -> None:
+    def _init_model_if_needed(self) -> None:
+        if self.model is not None:
+            return
         self.model = _LSTMEncoderDecoder(
             n_dims=self._n_dims,
             hidden_size=self._hidden_size,
@@ -199,7 +201,7 @@ class LSTM_ED(BaseDetector):
     def _data_to_sequences(self, data: pd.DataFrame) -> List[np.ndarray]:
         values = data.values
         sequences = [
-            torch.Tensor(values[i:i + self._sequence_len]).to(self._device)
+            values[i:i + self._sequence_len]
             for i
             in range(values.shape[0] - self._sequence_len + 1)
         ]

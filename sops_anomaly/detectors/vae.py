@@ -24,8 +24,6 @@ from sops_anomaly.utils import window_data
 
 class _VAE(nn.Module):
     """Vanilla Variational Auto Encoder implementation with ELBO training.
-
-     TODO: allow for batch-processing
     """
     def __init__(
         self,
@@ -41,7 +39,6 @@ class _VAE(nn.Module):
         self.prior: torch.distributions.Distribution = (
             torch.distributions.Normal(0, 1))
 
-        # TODO: smarter way to parametrize this?
         self.layer_mu: nn.Module = nn.Linear(latent_size, latent_size)
         self.layer_sigma: nn.Module = nn.Linear(latent_size, latent_size)
         self.decoder_input: nn.Module = nn.Linear(latent_size, latent_size)
@@ -119,7 +116,7 @@ class VariationalAutoEncoder(BaseDetector):
         l_samples: int = 10,
         threshold: float = 0.9,
         use_gpu: bool = False,
-    ):
+    ) -> None:
         """
         Variational Auto-Encoder based anomaly detector. Detects anomalies
         based on reconstruction probability score.
@@ -158,7 +155,7 @@ class VariationalAutoEncoder(BaseDetector):
         if self._input_size is None:
             self._input_size = len(train_data[0])
         if self.model is None:
-            self._init_model()
+            self._init_model_if_needed()
 
         indices = np.random.permutation(len(train_data))
         data_loader = DataLoader(
@@ -211,7 +208,7 @@ class VariationalAutoEncoder(BaseDetector):
         scores = np.array(scores)
         return np.max(scores)
 
-    def _run_train_loop(self, optimizer, data_loader, epochs, verbose):
+    def _run_train_loop(self, optimizer, data_loader, epochs, verbose) -> None:
         self.model.train()
         for epoch in range(epochs):
             epoch_loss = 0
@@ -225,7 +222,9 @@ class VariationalAutoEncoder(BaseDetector):
             if verbose:
                 print(f"Epoch {epoch} loss: {epoch_loss / len(data_loader)}")
 
-    def _init_model(self):
+    def _init_model_if_needed(self) -> None:
+        if self.model is not None:
+            return
         self.model = _VAE(
             input_size=self._input_size,
             layers=self._layers,

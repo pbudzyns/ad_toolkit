@@ -89,15 +89,6 @@ class AutoEncoder(BaseDetector):
             'cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
         self.max_error: float = 0.0
 
-    def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
-        return window_data(data, self._window_size)
-
-    def _data_to_tensors(self, data: pd.DataFrame) -> List[torch.Tensor]:
-        tensors = [torch.Tensor(row).to(self._device)
-                   for _, row
-                   in data.iterrows()]
-        return tensors
-
     def train(
         self,
         train_data: pd.DataFrame,
@@ -121,7 +112,7 @@ class AutoEncoder(BaseDetector):
         eval_data = all_data_tensors[split:]
 
         if self.model is None:
-            self._init_model()
+            self._init_model_if_needed()
         self.model.train()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
@@ -148,23 +139,6 @@ class AutoEncoder(BaseDetector):
 
         self.max_error = self._compute_threshold(eval_data)
 
-    def _init_model(self):
-        self.model = _AEModel(
-            input_size=self._input_size,
-            layers=self._layers,
-            latent_size=self._latent_size,
-        ).to(self._device)
-
-    def _compute_threshold(self, data: List[torch.Tensor]) -> float:
-        scores = []
-        self.model.eval()
-        with torch.no_grad():
-            for sample in data:
-                rec = self.model.forward(sample)
-                scores.append(F.mse_loss(rec, sample).item())
-        scores = np.array(scores)
-        return np.max(scores)
-
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         if self._window_size > 1:
             input_data = self._transform_data(data)
@@ -189,3 +163,31 @@ class AutoEncoder(BaseDetector):
             threshold = self._threshold
         scores = self.predict(data)
         return (scores >= threshold * self.max_error).astype(np.int32)
+
+    def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        return window_data(data, self._window_size)
+
+    def _data_to_tensors(self, data: pd.DataFrame) -> List[torch.Tensor]:
+        tensors = [torch.Tensor(row).to(self._device)
+                   for _, row
+                   in data.iterrows()]
+        return tensors
+
+    def _init_model_if_needed(self) -> None:
+        if self.model is not None:
+            return
+        self.model = _AEModel(
+            input_size=self._input_size,
+            layers=self._layers,
+            latent_size=self._latent_size,
+        ).to(self._device)
+
+    def _compute_threshold(self, data: List[torch.Tensor]) -> float:
+        scores = []
+        self.model.eval()
+        with torch.no_grad():
+            for sample in data:
+                rec = self.model.forward(sample)
+                scores.append(F.mse_loss(rec, sample).item())
+        scores = np.array(scores)
+        return np.max(scores)
