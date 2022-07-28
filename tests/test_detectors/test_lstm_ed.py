@@ -12,9 +12,13 @@ datasets = (
 
 
 @pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("hidden_size", (32, 16))
+@pytest.mark.parametrize("sequence_len", (20, 10, 5))
+@pytest.mark.parametrize("stride", (1, 5, 10))
 @pytest.mark.parametrize("use_gpu", (True, False))
-def test_train_lstm_ed(data, use_gpu):
-    lstm = LSTM_ED(hidden_size=200, use_gpu=use_gpu)
+def test_train_lstm_ed(data, hidden_size, sequence_len, stride, use_gpu):
+    lstm = LSTM_ED(sequence_len=sequence_len, stride=stride,
+                   hidden_size=hidden_size, use_gpu=use_gpu)
     lstm.train(data, epochs=2)
 
 

@@ -28,6 +28,7 @@ class LSTM_ED(BaseDetector):
     def __init__(
         self,
         sequence_len: int = 20,
+        stride: int = 1,
         hidden_size: int = 32,
         threshold: float = 0.5,
         use_gpu: bool = False,
@@ -36,7 +37,8 @@ class LSTM_ED(BaseDetector):
         super(LSTM_ED, self).__init__()
         self.model: Optional[nn.Module] = None
         self._n_dims: int = 0
-        self._sequence_len = sequence_len
+        self._sequence_len: int = sequence_len
+        self._stride: int = stride
         self._hidden_size: int = hidden_size
         self._error_dist: Optional[scipy.stats.multivariate_normal] = None
         self._threshold: float = threshold
@@ -203,7 +205,7 @@ class LSTM_ED(BaseDetector):
         sequences = [
             values[i:i + self._sequence_len]
             for i
-            in range(values.shape[0] - self._sequence_len + 1)
+            in range(0, values.shape[0] - self._sequence_len + 1, self._stride)
         ]
         return sequences
 
