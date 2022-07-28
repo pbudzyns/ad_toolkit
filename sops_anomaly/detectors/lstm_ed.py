@@ -55,7 +55,7 @@ class LSTM_ED(BaseDetector):
         batch_size: int = 32,
         verbose: bool = False,
     ) -> None:
-        sequences = self._data_to_sequences(train_data)
+        sequences = self._data_to_sequences(train_data, self._stride)
         # Train eval data split.
         split = int(0.8 * len(sequences))
         train_data_loader = self._get_train_data_loader(
@@ -75,7 +75,7 @@ class LSTM_ED(BaseDetector):
                 validation_data, validation_steps)
 
     def predict(self, data: pd.DataFrame, batch_size: int = 32) -> np.ndarray:
-        sequences = self._data_to_sequences(data)
+        sequences = self._data_to_sequences(data, 1)
         test_data_loader = self._get_eval_data_loader(sequences, batch_size)
 
         scores = []
@@ -200,12 +200,12 @@ class LSTM_ED(BaseDetector):
         )
         return data_loader
 
-    def _data_to_sequences(self, data: pd.DataFrame) -> List[np.ndarray]:
+    def _data_to_sequences(self, data: pd.DataFrame, stride: int) -> List[np.ndarray]:
         values = data.values
         sequences = [
             values[i:i + self._sequence_len]
             for i
-            in range(0, values.shape[0] - self._sequence_len + 1, self._stride)
+            in range(0, values.shape[0] - self._sequence_len + 1, stride)
         ]
         return sequences
 

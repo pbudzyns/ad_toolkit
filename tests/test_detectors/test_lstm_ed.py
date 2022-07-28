@@ -35,7 +35,7 @@ def test_train_lstm_ed_w_validation(data):
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("use_gpu", (True, False))
 def test_train_predict_lstm_ed(data, use_gpu):
-    lstm = LSTM_ED(use_gpu=use_gpu)
+    lstm = LSTM_ED(use_gpu=use_gpu, stride=5)
     lstm.train(data, epochs=2)
 
     p = lstm.predict(data)
