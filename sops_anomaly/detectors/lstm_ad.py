@@ -102,8 +102,8 @@ class LSTM_AD(BaseDetector):
         self._init_model_if_needed()
         for epoch in range(epochs):
             if verbose:
-                print(f"---> Starting {epoch} with data slices.")
-            for i in range(len(train_data) // slice_len):
+                print(f"---> Starting {epoch} epoch with data slices.")
+            for i in range(math.ceil(len(train_data) / slice_len)):
                 data_slice = train_data[i*slice_len:(i+1)*slice_len]
                 split = int(0.7 * len(data_slice))
                 train_slice = data_slice[:split]
@@ -127,7 +127,7 @@ class LSTM_AD(BaseDetector):
                     errors = np.concatenate((errors, error_slice))
 
                 if verbose:
-                    p = max(1.0, (i+1) * slice_len / len(train_data))
+                    p = min(1.0, (i+1) * slice_len / len(train_data))
                     print(f"... {math.floor(p * 100)}% processed")
 
         self._error_dist.fit_multivariate_gauss(errors)
