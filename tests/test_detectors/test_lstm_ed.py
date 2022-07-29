@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from sops_anomaly.detectors import LSTM_ED
+from ad_toolkit.detectors import LSTM_ED
 
 datasets = (
     pd.DataFrame(np.random.random((100, 1))),

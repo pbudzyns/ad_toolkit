@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from sops_anomaly.datasets.dataset import BaseDataset
-from sops_anomaly.evaluation import TimeSeriesPlot
+from ad_toolkit.datasets.dataset import BaseDataset
+from ad_toolkit.evaluation import TimeSeriesPlot
 
 URL_ROOT = "https://raw.githubusercontent.com/numenta/NAB/master/"
 

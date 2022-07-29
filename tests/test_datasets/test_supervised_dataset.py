@@ -3,8 +3,8 @@ from typing import Optional
 import pandas as pd
 import pytest
 
-from sops_anomaly.datasets import KddCup
-from sops_anomaly.datasets import SupervisedDataset
+from ad_toolkit.datasets import KddCup
+from ad_toolkit.datasets import SupervisedDataset
 
 
 @pytest.fixture(scope="session")

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 import tensorflow as tf
 
-from sops_anomaly.detectors import Donut
+from ad_toolkit.detectors import Donut
 
 
 @pytest.yield_fixture(autouse=True, scope='function')

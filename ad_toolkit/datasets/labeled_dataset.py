@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 
 import pandas as pd
 
-from sops_anomaly.datasets.dataset import BaseDataset
+from ad_toolkit.datasets.dataset import BaseDataset
 
 
 class LabeledDataset(BaseDataset, abc.ABC):

@@ -5,8 +5,8 @@ import pandas as pd
 import pytest
 from torch import nn
 
-from sops_anomaly.utils import window_data
-from sops_anomaly.utils.torch_utils import build_layers, build_network
+from ad_toolkit.utils import window_data
+from ad_toolkit.utils.torch_utils import build_layers, build_network
 
 
 def time_stamps(n_steps):

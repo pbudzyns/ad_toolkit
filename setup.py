@@ -32,11 +32,12 @@ REQUIREMENTS: dict = {
         'pytest',
     ],
 }
-
+# Ensure tests cover all models.
+REQUIREMENTS['test'] += REQUIREMENTS['donut']
 
 setup(
-    name='sops-anomaly',
-    description='Anomaly detection algorithms for telemetry data',
+    name='ad-toolkit',
+    description='Deep Learning Anomaly detection algorithms',
     maintainer='Pawel Budzynski',
     maintainer_email='pawel.budzynski19@gmail.com',
     long_description=LONG_DESCRIPTION,

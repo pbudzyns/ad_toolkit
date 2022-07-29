@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from sops_anomaly.detectors import RandomDetector
+from ad_toolkit.detectors import RandomDetector
 
 data = pd.DataFrame(data=np.random.random((10, 10)))
 

@@ -4,7 +4,7 @@ Long-Short Term Memory based Encoder-Decoder anomaly detector.
 References:
     - Malhotra, Pankaj, et al. "LSTM-based encoder-decoder for multi-sensor
       anomaly detection."
-    - Implementation from DeepADoTS
+    - DeepADoTS
       https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_enc_dec_axl.py
 
 """
@@ -20,7 +20,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, SubsetRandomSampler
 
-from sops_anomaly.detectors.base_detector import BaseDetector
+from ad_toolkit.detectors.base_detector import BaseDetector
 
 
 class LSTM_ED(BaseDetector):
@@ -200,7 +200,8 @@ class LSTM_ED(BaseDetector):
         )
         return data_loader
 
-    def _data_to_sequences(self, data: pd.DataFrame, stride: int) -> List[np.ndarray]:
+    def _data_to_sequences(
+            self, data: pd.DataFrame, stride: int) -> List[np.ndarray]:
         values = data.values
         sequences = [
             values[i:i + self._sequence_len]

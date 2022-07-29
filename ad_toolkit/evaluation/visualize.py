@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from sops_anomaly.detectors.base_detector import BaseDetector
+from ad_toolkit.detectors.base_detector import BaseDetector
 
 
 class Visualizer:
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         df_daily_jumpsup_url, parse_dates=True, index_col="timestamp"
     )
 
-    from sops_anomaly.detectors import AutoEncoder, RandomDetector, Betsi
+    from ad_toolkit.detectors import AutoEncoder, RandomDetector, Betsi
 
     autoencoder = AutoEncoder(
         input_size=180,

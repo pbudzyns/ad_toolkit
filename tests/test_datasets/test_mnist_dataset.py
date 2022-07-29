@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from sops_anomaly.datasets import MNIST
+from ad_toolkit.datasets import MNIST
 
 
 @pytest.fixture(scope="session")

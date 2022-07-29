@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from sops_anomaly.datasets import NabDataset
+from ad_toolkit.datasets import NabDataset
 
 
 @pytest.fixture(scope="session")

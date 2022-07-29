@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from sops_anomaly.detectors.base_detector import BaseDetector
+from ad_toolkit.detectors.base_detector import BaseDetector
 
 
 class RandomDetector(BaseDetector):

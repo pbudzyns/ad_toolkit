@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pytest
 
-from sops_anomaly.evaluation import Result
+from ad_toolkit.evaluation import Result
 
 
 @pytest.mark.parametrize("predicted,targets,expected_tp", (

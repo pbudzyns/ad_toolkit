@@ -17,8 +17,8 @@ import pandas as pd
 import torch
 from torch import nn
 
-from sops_anomaly.detectors.autoencoder import AutoEncoder
-from sops_anomaly.detectors.base_detector import BaseDetector
+from ad_toolkit.detectors.autoencoder import AutoEncoder
+from ad_toolkit.detectors.base_detector import BaseDetector
 
 
 class AutoEncoderTSS(BaseDetector):

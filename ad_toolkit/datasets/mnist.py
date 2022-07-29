@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 import torchvision
 # import tensorflow as tf
 
-from sops_anomaly.datasets.labeled_dataset import LabeledDataset
+from ad_toolkit.datasets.labeled_dataset import LabeledDataset
 
 
 class MNIST(LabeledDataset):

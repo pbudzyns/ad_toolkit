@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from sops_anomaly.detectors import AutoEncoderTSS
+from ad_toolkit.detectors import AutoEncoderTSS
 
 datasets = (
     pd.DataFrame(np.random.random((10, 1))),

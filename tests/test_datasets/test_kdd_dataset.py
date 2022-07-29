@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from sops_anomaly.datasets import KddCup
+from ad_toolkit.datasets import KddCup
 
 
 @pytest.fixture(scope="session")

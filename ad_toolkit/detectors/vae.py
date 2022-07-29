@@ -17,9 +17,9 @@ import torch.distributions
 from torch.utils.data import DataLoader, SubsetRandomSampler
 
 
-from sops_anomaly.detectors.base_detector import BaseDetector
-from sops_anomaly.utils.torch_utils import build_layers, build_network
-from sops_anomaly.utils import window_data
+from ad_toolkit.detectors.base_detector import BaseDetector
+from ad_toolkit.utils.torch_utils import build_layers, build_network
+from ad_toolkit.utils import window_data
 
 
 class _VAE(nn.Module):

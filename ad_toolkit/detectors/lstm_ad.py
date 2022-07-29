@@ -4,7 +4,7 @@ LSTM Anomaly Detector based on reconstruction error density.
 References:
     - Malhotra, Pankaj, et al. "Long short term memory networks for anomaly
       detection in time series."
-    - Implementation from DeepADoTS
+    - DeepADoTS
       https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_ad.py
 
 """
@@ -20,7 +20,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from sops_anomaly.detectors.base_detector import BaseDetector
+from ad_toolkit.detectors.base_detector import BaseDetector
 
 
 class LSTM_AD(BaseDetector):
@@ -65,7 +65,7 @@ class LSTM_AD(BaseDetector):
         :param verbose:
         :return:
         """
-        if len(train_data) > 1e4:
+        if len(train_data) > 5e3:
             warnings.warn(
                 "Input very long, consider using train_with_slices.")
         # Train eval data split.
