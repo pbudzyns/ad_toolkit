@@ -1,6 +1,10 @@
-from typing import List
+import math
+from typing import List, Tuple, Union
 
+import numpy as np
+import torch
 from torch import nn
+from torch.utils.data import DataLoader, SubsetRandomSampler
 
 
 def build_layers(input_size, layers, output_size):
@@ -30,3 +34,36 @@ def build_network(layers: List[nn.Module]) -> nn.Sequential:
         ))
     network.append(layers[-1])
     return nn.Sequential(*network)
+
+
+def get_data_loader(
+    data: Union[List[torch.Tensor], List[np.ndarray]], batch_size: int,
+    test: bool = False,
+) -> DataLoader:
+    if test:
+        sampler = None
+    else:
+        indices = np.random.permutation(len(data))
+        sampler = SubsetRandomSampler(indices)
+
+    return DataLoader(
+        dataset=data,
+        batch_size=min(len(data), batch_size),
+        drop_last=not test,
+        sampler=sampler,
+    )
+
+
+def train_valid_split(
+    data: Union[List[torch.Tensor], List[np.ndarray]],
+    validation_portion: float, batch_size: int,
+) -> Tuple[DataLoader, DataLoader]:
+
+    split = math.ceil(validation_portion * len(data))
+    train_data = data[:split]
+    valid_data = data[split:]
+
+    train_data_loader = get_data_loader(train_data, batch_size)
+    valid_data_loader = get_data_loader(valid_data, batch_size)
+
+    return train_data_loader, valid_data_loader

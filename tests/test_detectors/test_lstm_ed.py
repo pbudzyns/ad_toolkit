@@ -40,10 +40,8 @@ def test_train_predict_lstm_ed(data, use_gpu):
 
     p = lstm.predict(data)
     assert len(p) == len(data)
-    # assert np.all(p >= 0) and np.all(p <= 1)
 
 
-# @pytest.mark.skip("Not implemented yet")
 @pytest.mark.parametrize("data", datasets)
 def test_train_detect_lstm_ed(data):
     lstm = LSTM_ED()

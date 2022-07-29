@@ -30,12 +30,3 @@ class BaseDetector(abc.ABC):
         :return: Model's output.
         """
         pass
-
-    @abc.abstractmethod
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
-        """Detect anomalies in the provided data using trained model.
-
-        :param data: Time series data.
-        :return: Array of anomalous indices.
-        """
-        pass

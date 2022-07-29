@@ -52,7 +52,6 @@ def test_train_predict_lstm(data, use_gpu):
 
     p = lstm.predict(data)
     assert len(p) == len(data)
-    # assert np.all(p >= 0) and np.all(p <= 1)
 
 
 @pytest.mark.parametrize("data", datasets)

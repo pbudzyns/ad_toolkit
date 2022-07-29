@@ -16,7 +16,7 @@ datasets = (
 @pytest.mark.parametrize("use_gpu", (False, True))
 def test_train_auto_encoder(data, use_gpu):
     ae = AutoEncoder(window_size=3, use_gpu=use_gpu)
-    ae.train(data, epochs=2)
+    ae.train(data, epochs=2, verbose=True)
 
 
 @pytest.mark.parametrize("layers", (
@@ -51,14 +51,3 @@ def test_train_predict_auto_encoder(data, window_size, use_gpu):
 
     p = ae.predict(data)
     assert len(p) == len(data)
-
-
-@pytest.mark.parametrize("data", datasets)
-@pytest.mark.parametrize("window_size", (1, 3, 5))
-def test_train_detect_auto_encoder(data, window_size):
-    ae = AutoEncoder(window_size=window_size)
-    ae.train(data, epochs=2)
-
-    p = ae.detect(data)
-    assert len(p) == len(data)
-    assert all(pp in (0, 1) for pp in p)

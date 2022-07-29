@@ -14,11 +14,12 @@ from torch import nn
 from torch.nn import functional as F
 import torch.optim
 import torch.distributions
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader
 
 
 from ad_toolkit.detectors.base_detector import BaseDetector
-from ad_toolkit.utils.torch_utils import build_layers, build_network
+from ad_toolkit.utils.torch_utils import (
+    build_layers, build_network, train_valid_split)
 from ad_toolkit.utils import window_data
 
 
@@ -112,7 +113,6 @@ class VariationalAutoEncoder(BaseDetector):
         latent_size: int = 50,
         layers: Union[List[int], Tuple[int]] = (500, 200),
         l_samples: int = 10,
-        threshold: float = 0.9,
         use_gpu: bool = False,
     ) -> None:
         """
@@ -124,56 +124,45 @@ class VariationalAutoEncoder(BaseDetector):
         :param threshold:
         """
         super(VariationalAutoEncoder, self).__init__()
-        self._window_size: int = window_size
+        self.model: Optional[nn.Module] = None
         self._input_size: Optional[int] = None
+        self._window_size: int = window_size
         self._latent_size: int = latent_size
         self._layers: Union[List[int], Tuple[int]] = layers
         self._l_samples: int = l_samples
-        self._threshold: float = threshold
         self._device: torch.device = torch.device(
             'cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
-        self.max_error: float = 0.0
-        self.model: Optional[nn.Module] = None
 
     def train(
-        self,
-        train_data: pd.DataFrame,
-        epochs: int = 30,
-        batch_size: int = 32,
-        learning_rate: float = 1e-4,
+        self, train_data: pd.DataFrame, epochs: int = 30, batch_size: int = 32,
+        learning_rate: float = 1e-4, validation_portion: float = 1e-2,
         verbose: bool = False,
     ) -> None:
-        all_data = self._transform_data(train_data)
-        all_data_tensors = self._data_to_tensors(all_data)
+        all_data_tensors = self._prepare_data(train_data)
+        self._init_detector(all_data_tensors)
 
-        split = int(0.8 * len(all_data_tensors))
-        train_data = all_data_tensors[:split]
-        eval_data = all_data_tensors[split:]
-
-        if self._input_size is None:
-            self._input_size = len(train_data[0])
-        if self.model is None:
-            self._init_model_if_needed()
-
-        indices = np.random.permutation(len(train_data))
-        data_loader = DataLoader(
-            dataset=train_data,
-            batch_size=min(len(train_data), batch_size),
-            drop_last=True,
-            sampler=SubsetRandomSampler(indices),
-        )
+        train_data_loader, valid_data_loader = train_valid_split(
+            all_data_tensors, validation_portion, batch_size)
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-        self._run_train_loop(optimizer, data_loader, epochs, verbose)
-        self.max_error = self._compute_threshold(eval_data)
+        for epoch in range(epochs):
+            train_loss = self._train_model(train_data_loader, optimizer)
+            valid_loss = self._validate_model(valid_data_loader)
+            if verbose:
+                print(f"Epoch {epoch} train_loss: {train_loss}, "
+                      f"valid_loss: {valid_loss}")
+
+    def _prepare_data(self, train_data: pd.DataFrame) -> List[torch.Tensor]:
+        all_data = self._transform_data(train_data)
+        all_data_tensors = self._data_to_tensors(all_data)
+        return all_data_tensors
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
-        data = self._transform_data(data)
-        data = self._data_to_tensors(data)
+        all_data_tensors = self._prepare_data(data)
         scores = [0.0] * (self._window_size - 1)    # To match input length.
         self.model.eval()
         with torch.no_grad():
-            for x in data:
+            for x in all_data_tensors:
                 mu, log_var = self.model.encode(x)
                 score = 0
                 for i in range(self._l_samples):
@@ -183,9 +172,35 @@ class VariationalAutoEncoder(BaseDetector):
                 scores.append(score / self._l_samples)
         return np.array(scores)
 
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
-        scores = self.predict(data)
-        return (scores >= self._threshold * self.max_error).astype(np.int32)
+    def _init_detector(self, all_data_tensors):
+        if self._input_size is None:
+            self._input_size = len(all_data_tensors[0])
+        self._init_model_if_needed()
+
+    def _train_model(
+        self, train_data_loader: DataLoader, optimizer: torch.optim.Optimizer,
+    ) -> float:
+        total_loss = 0
+        self.model.train()
+        for batch in train_data_loader:
+            optimizer.zero_grad()
+            model_outputs = self.model.forward(batch)
+            loss = self.model.loss_function(model_outputs)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+        return total_loss / len(train_data_loader)
+
+    def _validate_model(self, valid_data_loader: DataLoader) -> float:
+        total_loss = 0
+        self.model.eval()
+        with torch.no_grad():
+            for batch in valid_data_loader:
+                model_outputs = self.model.forward(batch)
+                loss = self.model.loss_function(model_outputs)
+                total_loss += loss.item()
+
+        return total_loss / len(valid_data_loader)
 
     def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
         return window_data(data, self._window_size)
@@ -195,30 +210,6 @@ class VariationalAutoEncoder(BaseDetector):
                    for _, row
                    in data.iterrows()]
         return tensors
-
-    def _compute_threshold(self, data: List[torch.Tensor]) -> float:
-        scores = []
-        self.model.eval()
-        with torch.no_grad():
-            for sample in data:
-                rec, _, _, _ = self.model.forward(sample)
-                scores.append(F.mse_loss(rec, sample).item())
-        scores = np.array(scores)
-        return np.max(scores)
-
-    def _run_train_loop(self, optimizer, data_loader, epochs, verbose) -> None:
-        self.model.train()
-        for epoch in range(epochs):
-            epoch_loss = 0
-            for batch in data_loader:
-                optimizer.zero_grad()
-                results = self.model.forward(batch)
-                loss = self.model.loss_function(results)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item()
-            if verbose:
-                print(f"Epoch {epoch} loss: {epoch_loss / len(data_loader)}")
 
     def _init_model_if_needed(self) -> None:
         if self.model is not None:

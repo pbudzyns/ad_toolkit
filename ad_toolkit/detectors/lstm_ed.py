@@ -18,9 +18,10 @@ import sklearn.metrics
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader
 
 from ad_toolkit.detectors.base_detector import BaseDetector
+from ad_toolkit.utils.torch_utils import get_data_loader, train_valid_split
 
 
 class LSTM_ED(BaseDetector):
@@ -36,11 +37,11 @@ class LSTM_ED(BaseDetector):
 
         super(LSTM_ED, self).__init__()
         self.model: Optional[nn.Module] = None
+        self._error_dist: Optional[scipy.stats.multivariate_normal] = None
         self._n_dims: int = 0
         self._sequence_len: int = sequence_len
         self._stride: int = stride
         self._hidden_size: int = hidden_size
-        self._error_dist: Optional[scipy.stats.multivariate_normal] = None
         self._threshold: float = threshold
         self._device: torch.device = torch.device(
             'cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
@@ -57,11 +58,8 @@ class LSTM_ED(BaseDetector):
     ) -> None:
         sequences = self._data_to_sequences(train_data, self._stride)
         # Train eval data split.
-        split = int(0.8 * len(sequences))
-        train_data_loader = self._get_train_data_loader(
-            sequences[:split], batch_size)
-        eval_data_loader = self._get_train_data_loader(
-            sequences[split:], batch_size)
+        train_data_loader, eval_data_loader = train_valid_split(
+            sequences, validation_portion=0.2, batch_size=batch_size)
 
         # Initialize the model.
         self._n_dims = sequences[0].shape[1]
@@ -76,7 +74,7 @@ class LSTM_ED(BaseDetector):
 
     def predict(self, data: pd.DataFrame, batch_size: int = 32) -> np.ndarray:
         sequences = self._data_to_sequences(data, 1)
-        test_data_loader = self._get_eval_data_loader(sequences, batch_size)
+        test_data_loader = get_data_loader(sequences, batch_size, test=True)
 
         scores = []
         self.model.eval()
@@ -159,14 +157,15 @@ class LSTM_ED(BaseDetector):
         )
 
     def _compute_errors(self, data_loader: DataLoader) -> List[np.ndarray]:
-        self.model.eval()
         error_vectors = []
-        for inputs in data_loader:
-            inputs = inputs.float().to(self._device)
-            output = self.model.forward(inputs)
-            error = F.l1_loss(output, inputs, reduction='none')
-            error_vectors += list(
-                error.view(-1, self._n_dims).cpu().detach().numpy())
+        self.model.eval()
+        with torch.no_grad():
+            for inputs in data_loader:
+                inputs = inputs.float().to(self._device)
+                output = self.model.forward(inputs)
+                error = F.l1_loss(output, inputs, reduction='none')
+                error_vectors += list(
+                    error.view(-1, self._n_dims).cpu().detach().numpy())
         return error_vectors
 
     def _init_model_if_needed(self) -> None:
@@ -177,28 +176,6 @@ class LSTM_ED(BaseDetector):
             hidden_size=self._hidden_size,
             device=self._device,
         )
-
-    @classmethod
-    def _get_train_data_loader(
-            cls, sequences: List[np.ndarray], batch_size: int) -> DataLoader:
-        indices = np.random.permutation(len(sequences))
-        data_loader = DataLoader(
-            dataset=sequences,
-            batch_size=min(len(sequences), batch_size),
-            drop_last=True,
-            sampler=SubsetRandomSampler(indices),
-        )
-        return data_loader
-
-    @classmethod
-    def _get_eval_data_loader(
-            cls, sequences: List[np.ndarray], batch_size: int) -> DataLoader:
-        data_loader = DataLoader(
-            dataset=sequences,
-            batch_size=min(len(sequences), batch_size),
-            drop_last=True,
-        )
-        return data_loader
 
     def _data_to_sequences(
             self, data: pd.DataFrame, stride: int) -> List[np.ndarray]:

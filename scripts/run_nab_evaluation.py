@@ -8,7 +8,8 @@ from typing import List, Union
 
 
 def copy_results(
-    detectors_names: List[str], nab_dir: pathlib.Path, results_dir: pathlib.Path,
+    detectors_names: List[str], nab_dir: pathlib.Path,
+    results_dir: pathlib.Path,
 ) -> None:
     target_dir = nab_dir / "results"
     for result in results_dir.iterdir():
