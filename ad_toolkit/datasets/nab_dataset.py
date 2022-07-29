@@ -68,24 +68,26 @@ class NabDataset(BaseDataset):
         self._data = (data, labels)
 
     def get_train_samples(
-        self, normalize: bool = True,
-    ) -> pd.DataFrame:
-        data = self._normalized_data() if normalize else self.data[0]
-        return data
+        self, standardize: bool = True,
+    ) -> Tuple[pd.DataFrame, pd.Series]:
+        x, y = self.data
+        data = self._standardize_data(x) if standardize else x
+        return data, y
 
-    def _normalized_data(self):
-        normalized = self.data[0].copy()
-        normalized = (normalized - normalized.mean()) / normalized.std()
-        return normalized
+    @classmethod
+    def _standardize_data(cls, data):
+        standardised = (data - data.mean())
+        std = standardised.std().value
+        if std > 0:
+            standardised /= std
+        return standardised
 
     def get_test_samples(self) -> Tuple[pd.DataFrame, pd.Series]:
         return self.data
 
     def plot(
-        self,
-        anomalies: Optional[Dict[str, np.ndarray]] = None,
-        vertical_margin: int = 10,
-        show_legend: bool = False,
+        self, anomalies: Optional[Dict[str, np.ndarray]] = None,
+        vertical_margin: int = 10, show_legend: bool = False,
         anomaly_style_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
         x, labels = self.data

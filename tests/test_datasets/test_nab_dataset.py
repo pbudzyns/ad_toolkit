@@ -26,11 +26,13 @@ def test_nab_load_dataset(nab):
     assert set(y) == {0, 1}
 
 
-@pytest.mark.parametrize("normalize", (False, True))
-def test_nab_get_train_data(nab, normalize):
-    x = nab.get_train_samples(normalize=normalize)
+@pytest.mark.parametrize("standardize", (False, True))
+def test_nab_get_train_data(nab, standardize):
+    x, y = nab.get_train_samples(standardize=standardize)
     assert isinstance(x, pd.DataFrame)
-    if normalize:
+    assert isinstance(y, pd.Series)
+    assert len(x) == len(y)
+    if standardize:
         assert -0.1 < float(x.mean()) < 0.1
 
 
