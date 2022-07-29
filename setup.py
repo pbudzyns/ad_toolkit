@@ -32,7 +32,7 @@ REQUIREMENTS: dict = {
         'pytest',
     ],
 }
-# Ensure tests cover all models.
+# Ensure tests run for all models.
 REQUIREMENTS['test'] += REQUIREMENTS['donut']
 
 setup(

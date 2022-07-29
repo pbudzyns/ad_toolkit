@@ -10,7 +10,7 @@ charset = utf-8
 
 # 4 space indentation
 [*.py]
-max_line_length=80
+max_line_length = 80
 indent_style = space
 indent_size = 4
 

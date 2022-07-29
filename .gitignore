@@ -1,12 +1,15 @@
-venv/
+# pycharm files.
 .idea/
-data/nab_files/
-data/kdd_cup_1999/
-*.pyc
+# jupyter notebook files.
 .ipynb_checkpoints/
+# build
 .egg-info/
 sops_anomaly.egg-info/
-results/
-.idea
+
+venv/
+*.pyc
+
+# Data files
 data/
+results/
 notebooks/esa
