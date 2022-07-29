@@ -77,7 +77,7 @@ class Donut(BaseDetector):
         with self._session.as_default():
             scores = predictor.get_score(values, missing)
 
-        prediction_scores[-len(scores):] = np.exp(scores)
+        prediction_scores[-len(scores):] = -np.exp(scores)
         return prediction_scores
 
     def detect(self, data: pd.DataFrame) -> np.ndarray:
