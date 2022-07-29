@@ -73,7 +73,6 @@ class AutoEncoder(BaseDetector):
         :param window_size:
         :param latent_size:
         :param layers:
-        :param threshold:
         """
         self.model: Optional[nn.Module] = None
         self._input_size: Optional[int] = None
@@ -105,7 +104,10 @@ class AutoEncoder(BaseDetector):
                 print(f"Epoch {epoch} train_loss: {train_loss}, "
                       f"valid_loss: {valid_loss}")
 
-    def predict(self, data: pd.DataFrame, batch_size: int = 32) -> np.ndarray:
+    def predict(
+        self, data: pd.DataFrame, batch_size: int = 32,
+        raw_errors: bool = False,
+    ) -> np.ndarray:
         if self._window_size > 1:
             input_data = self._transform_data(data)
             input_data = self._data_to_tensors(input_data)
@@ -118,13 +120,26 @@ class AutoEncoder(BaseDetector):
         with torch.no_grad():
             for batch in data_loader:
                 rec = self.model.forward(batch)
-                print(batch.shape)
-                loss = F.mse_loss(rec, batch, reduction='none')
-                print(loss.shape, loss.mean(1).shape)
-                scores.append(loss.mean(1).cpu().numpy())
-        results = np.zeros((len(data),))
+                errors = F.mse_loss(rec, batch, reduction='none')
+                if not raw_errors:
+                    errors = errors.mean(1)
+                scores.append(errors.cpu().numpy())
+
+        if raw_errors:
+            results = np.zeros((len(data), self._input_size))
+        else:
+            results = np.zeros((len(data),))
         results[self._window_size-1:] = np.concatenate(scores)
-        return results
+
+        return (results if not raw_errors
+                else self._errors_to_reconstruction_error(results))
+
+    def _errors_to_reconstruction_error(self, errors):
+        d = int(self._input_size / self._window_size)
+        rec_errors = np.zeros((len(errors), d))
+        for i in range(self._window_size):
+            rec_errors += errors[:, i*d:(i+1)*d]
+        return rec_errors / self._window_size
 
     def _init_detector(self, all_data: pd.DataFrame) -> None:
         if self._input_size is None:

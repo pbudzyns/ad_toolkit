@@ -72,7 +72,10 @@ class LSTM_ED(BaseDetector):
             self._optimize_prediction_threshold(
                 validation_data, validation_steps)
 
-    def predict(self, data: pd.DataFrame, batch_size: int = 32) -> np.ndarray:
+    def predict(
+        self, data: pd.DataFrame, batch_size: int = 32,
+        raw_errors: bool = False,
+    ) -> np.ndarray:
         sequences = self._data_to_sequences(data, 1)
         test_data_loader = get_data_loader(sequences, batch_size, test=True)
 
@@ -83,20 +86,36 @@ class LSTM_ED(BaseDetector):
             outputs = self.model.forward(inputs)
             error = F.l1_loss(outputs, inputs, reduction='none')
             error = error.view(-1, data.shape[1]).cpu().detach().numpy()
+            if raw_errors:
+                error = error.reshape(
+                    inputs.size(0), self._sequence_len * self._n_dims)
+                scores.append(error)
+                continue
             score = -self._dist(error)
             scores.append(score.reshape(inputs.size(0), self._sequence_len))
 
         scores = np.concatenate(scores)
+        if raw_errors:
+            return self._raw_errors(data, scores)
+
         lattice = np.zeros((self._sequence_len, data.shape[0]))
         for i, score in enumerate(scores):
             lattice[i % self._sequence_len, i:i + self._sequence_len] = score
         scores = np.nanmean(lattice, axis=0)
-
         return scores
 
     def detect(self, data: pd.DataFrame) -> np.ndarray:
         scores = self.predict(data)
         return (scores < self._threshold).astype(np.int32)
+
+    def _raw_errors(self, data, errors):
+        res = np.zeros(data.shape)
+        averaged = np.zeros((errors.shape[0], self._n_dims))
+        for i in range(self._sequence_len):
+            averaged += errors[:, i*self._n_dims:(i+1)*self._n_dims]
+        averaged /= self._sequence_len
+        res[self._sequence_len-1:] = averaged
+        return res
 
     def _optimize_prediction_threshold(
         self,

@@ -51,3 +51,13 @@ def test_train_predict_auto_encoder(data, window_size, use_gpu):
 
     p = ae.predict(data)
     assert len(p) == len(data)
+
+
+@pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("window_size", (1, 3, 5))
+def test_train_predict_raw_errors_auto_encoder(data, window_size):
+    ae = AutoEncoder(window_size=window_size)
+    ae.train(data, epochs=2)
+
+    p = ae.predict(data, raw_errors=True)
+    assert p.shape == data.shape

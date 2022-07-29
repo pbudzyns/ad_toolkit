@@ -55,6 +55,16 @@ def test_train_predict_lstm(data, use_gpu):
 
 
 @pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("window_size", (1, 5, 10))
+def test_train_predict_raw_errors_lstm(data, window_size):
+    lstm = LSTM_AD(window_size=window_size)
+    lstm.train(data, epochs=2)
+
+    p = lstm.predict(data, raw_errors=True)
+    assert p.shape == data.shape
+
+
+@pytest.mark.parametrize("data", datasets)
 def test_train_detect_lstm(data):
     lstm = LSTM_AD()
     lstm.train(data, epochs=2)

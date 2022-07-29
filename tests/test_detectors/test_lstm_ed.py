@@ -43,6 +43,16 @@ def test_train_predict_lstm_ed(data, use_gpu):
 
 
 @pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("sequence_len", (20, 10, 5))
+def test_train_predict_raw_errors_lstm_ed(data, sequence_len):
+    lstm = LSTM_ED(sequence_len=sequence_len)
+    lstm.train(data, epochs=2)
+
+    p = lstm.predict(data, raw_errors=True)
+    assert p.shape == data.shape
+
+
+@pytest.mark.parametrize("data", datasets)
 def test_train_detect_lstm_ed(data):
     lstm = LSTM_ED()
     lstm.train(data, epochs=2)

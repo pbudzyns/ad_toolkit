@@ -53,3 +53,13 @@ def test_train_predict_vae(data, window_size, latent_size, use_gpu):
 
     p = vae.predict(data)
     assert len(p) == len(data)
+
+
+@pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("window_size", (1, 3, 5))
+def test_train_predict_raw_errors_vae(data, window_size):
+    vae = VariationalAutoEncoder(window_size=window_size)
+    vae.train(data, epochs=2)
+
+    p = vae.predict(data, raw_errors=True)
+    assert p.shape == data.shape

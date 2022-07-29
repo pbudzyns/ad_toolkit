@@ -157,20 +157,48 @@ class VariationalAutoEncoder(BaseDetector):
         all_data_tensors = self._data_to_tensors(all_data)
         return all_data_tensors
 
-    def predict(self, data: pd.DataFrame) -> np.ndarray:
+    def predict(
+            self, data: pd.DataFrame, raw_errors: bool = False) -> np.ndarray:
         all_data_tensors = self._prepare_data(data)
-        scores = [0.0] * (self._window_size - 1)    # To match input length.
+        scores = []
         self.model.eval()
         with torch.no_grad():
             for x in all_data_tensors:
                 mu, log_var = self.model.encode(x)
-                score = 0
-                for i in range(self._l_samples):
-                    z = self.model.reparametrize(mu, log_var)
-                    x_hat = self.model.decode(z)
-                    score += F.mse_loss(x_hat, x).item()
-                scores.append(score / self._l_samples)
-        return np.array(scores)
+                if raw_errors:
+                    score = self._raw_error(x, mu, log_var)
+                else:
+                    score = self._simple_error(x, mu, log_var)
+                scores.append(score)
+
+        if raw_errors:
+            results = np.zeros(data.shape)
+        else:
+            results = np.zeros((len(data),))
+        results[self._window_size-1:] = scores
+        return results
+
+    def _simple_error(self, x, mu, log_var):
+        score = 0
+        for i in range(self._l_samples):
+            z = self.model.reparametrize(mu, log_var)
+            x_hat = self.model.decode(z)
+            score += F.mse_loss(x_hat, x).item()
+        return score / self._l_samples
+
+    def _raw_error(self, x, mu, log_var):
+        errors = np.zeros((self._input_size, ))
+        for i in range(self._l_samples):
+            z = self.model.reparametrize(mu, log_var)
+            x_hat = self.model.decode(z)
+            error = F.mse_loss(x_hat, x, reduction='none').cpu().numpy()
+            error /= self._l_samples
+            errors += error
+        d = int(self._input_size / self._window_size)
+        res = np.zeros((d, ))
+        for i in range(self._window_size):
+            res += errors[i*d:(i+1)*d]
+        return res / self._window_size
 
     def _init_detector(self, all_data_tensors):
         if self._input_size is None:

@@ -132,17 +132,22 @@ class LSTM_AD(BaseDetector):
 
         self._error_dist.fit_multivariate_gauss(errors)
 
-    def predict(self, data: pd.DataFrame) -> np.ndarray:
+    def predict(
+            self, data: pd.DataFrame, raw_errors: bool = False) -> np.ndarray:
         """Return anomaly scores for data points.
 
         :param data:
+        :param raw_errors:
         :return:
         """
         self.model.eval()
         inputs, targets = self._transform_eval_data_target(data)
         outputs = self._get_model_outputs(self._to_tensor(inputs))
         errors = self._get_errors(outputs, targets)
-        scores = self._get_scores(data, errors)
+        if not raw_errors:
+            scores = self._get_scores(data, errors)
+        else:
+            scores = self._raw_errors(data, errors)
         return scores
 
     def detect(self, data: pd.DataFrame) -> np.ndarray:
@@ -153,6 +158,15 @@ class LSTM_AD(BaseDetector):
         """
         scores = self.predict(data)
         return (scores < self._threshold).astype(np.int32)
+
+    def _raw_errors(self, data, errors):
+        d = self._d_size
+        results = np.zeros(data.shape)
+        averaged = np.zeros((len(errors), d))
+        for i in range(self._l_preds):
+            averaged += errors[:, i*d:(i+1)*d]
+        results[self._l_preds:] = (averaged / self._l_preds)
+        return results
 
     def _init_model_if_needed(self) -> None:
         if self.model is not None:
