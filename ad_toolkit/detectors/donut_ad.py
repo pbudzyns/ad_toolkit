@@ -8,7 +8,7 @@ References:
      https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/donut.py
 
 """
-from typing import Any, List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from donut import (
     Donut as _Donut,
@@ -35,47 +35,58 @@ class Donut(BaseDetector):
         self._x_dim: int = window_size
         self._latent_size: int = latent_size
         self._layers: Union[List[int], Tuple[int]] = layers
-        self._means: List[float] = []
-        self._stds: List[float] = []
-        self._models: List[_Donut] = []
-        self._sessions: List[tf.Session] = []
-        self._predictors: List[_DonutPredictor] = []
+        self._mean: float = 0.0
+        self._std: float = 0.0
+        self._model: Optional[Tuple[_Donut, tf.VariableScope]] = None
+        self._session: Optional[tf.Session] = None
         self._model_counter = 0
 
-    def __del__(self):
-        for sess in self._sessions:
-            sess.close()
-
     def train(self, train_data: pd.DataFrame, epochs: int = 30):
-        # train_data = window_data(train_data, self._window_size)
         timestamp = np.array(train_data.index)
-        for _, column in train_data.items():
-            values = np.array(column)
-            labels = np.zeros_like(values, dtype=np.int32)
-            timestamp, missing, (values, labels) = complete_timestamp(
-                timestamp, (values, labels))
-            train_values, mean, std = standardize_kpi(
-                values, excludes=np.logical_or(labels, missing))
+        values = train_data.values.squeeze()
+        labels = np.zeros_like(values, dtype=np.int32)
+        timestamp, missing, (values, labels) = complete_timestamp(
+            timestamp, (values, labels))
+        train_values, mean, std = standardize_kpi(
+            values, excludes=np.logical_or(labels, missing))
 
-            session = tf.Session(
-                config=tf.ConfigProto(allow_soft_placement=True))
-            model, model_vs = self._build_model()
-            trainer = _DonutTrainer(
-                model=model,
-                model_vs=model_vs,
-                max_epoch=epochs,
-                missing_data_injection_rate=0.0,
-            )
-            with session.as_default():
-                trainer.fit(train_values, labels, missing, mean, std,
-                            valid_portion=0.25)
+        session = tf.Session(
+            config=tf.ConfigProto(allow_soft_placement=True))
+        model, model_vs = self._build_model_if_needed()
+        trainer = _DonutTrainer(
+            model=model,
+            model_vs=model_vs,
+            max_epoch=epochs,
+            missing_data_injection_rate=0.0,
+        )
+        with session.as_default():
+            trainer.fit(train_values, labels, missing, mean, std,
+                        valid_portion=0.25)
 
-            self._models.append(model)
-            self._means.append(mean)
-            self._stds.append(std)
-            self._sessions.append(session)
+        self._model = (model, model_vs)
+        self._mean = mean
+        self._std = std
+        self._session = session
 
-    def _build_model(self) -> Tuple[_Donut, Any]:
+    def predict(self, data: pd.DataFrame) -> np.ndarray:
+        prediction_scores = np.ones((len(data),)) * (-1)
+        values = data.values.squeeze()
+        values, _, _ = standardize_kpi(values, mean=self._mean, std=self._std)
+        missing = np.zeros_like(values, dtype=np.int32)
+        predictor = _DonutPredictor(model=self._model[0])
+        with self._session.as_default():
+            scores = predictor.get_score(values, missing)
+
+        prediction_scores[-len(scores):] = np.exp(scores)
+        return prediction_scores
+
+    def detect(self, data: pd.DataFrame) -> np.ndarray:
+        # TODO: implement detection, check in the paper how is it done
+        pass
+
+    def _build_model_if_needed(self) -> Tuple[_Donut, tf.VariableScope]:
+        if self._model is not None:
+            return self._model
         with tf.variable_scope('model') as model_vs:
             encoder_layers = [
                 layers.Dense(
@@ -102,25 +113,3 @@ class Donut(BaseDetector):
                 z_dims=self._latent_size,
             )
         return model, model_vs
-
-    def predict(self, data: pd.DataFrame) -> np.ndarray:
-        prediction_scores = np.ones((len(data),)) * (-1)
-        # results = []
-        for i, (_, column) in enumerate(data.items()):
-            values = np.array(column)
-            mean, std = self._means[i], self._stds[i]
-            values, _, _ = standardize_kpi(values, mean=mean, std=std)
-            missing = np.zeros_like(values, dtype=np.int32)
-            session = self._sessions[i]
-            predictor = _DonutPredictor(model=self._models[i])
-            with session.as_default():
-                scores = predictor.get_score(values, missing)
-            scores = np.exp(scores)
-            # results.append(scores)
-
-        prediction_scores[-len(scores):] = scores
-        return prediction_scores
-
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
-        # TODO: implement detection, check in the paper how is it done
-        pass

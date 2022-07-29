@@ -91,11 +91,9 @@ class _VAE(nn.Module):
         (x_hat, x, mu, log_var) = model_outputs
 
         reconstruction_loss = F.mse_loss(x_hat, x)
-        # TODO: batch processing loss definition
         kl_loss = torch.mean(
             -0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1),
             dim=0)
-        # kl_loss = -0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp())
 
         total_loss = reconstruction_loss + kl_loss
         return total_loss
