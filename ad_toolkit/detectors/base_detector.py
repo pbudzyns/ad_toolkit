@@ -16,9 +16,10 @@ class BaseDetector(abc.ABC):
         the data transformation independently, including normalization
         and constructing sliding window.
 
-        :param train_data: Time series data.
-        :param epochs: Number of epochs.
-        :return: training history
+        Parameters
+        ----------
+        train_data
+            Train data.
         """
         pass
 
@@ -26,7 +27,9 @@ class BaseDetector(abc.ABC):
     def predict(self, data: pd.DataFrame) -> np.ndarray:
         """Return raw model's output for the given `data`.
 
-        :param data: Time series data.
-        :return: Model's output.
+        Parameters
+        ----------
+        data
+            Data to make prediction.
         """
         pass

@@ -6,7 +6,7 @@ import pytest
 from torch import nn
 
 from ad_toolkit.utils import window_data
-from ad_toolkit.utils.torch_utils import build_layers, build_network
+from ad_toolkit.utils.torch_utils import build_linear_layers, build_network
 
 
 def time_stamps(n_steps):
@@ -74,7 +74,7 @@ def test_window_data_output_shape(data, window_size):
     (10, (20, 30, 40), 10),
 ))
 def test_build_layers(inputs, inner, outputs):
-    layers = build_layers(inputs, inner, outputs)
+    layers = build_linear_layers(inputs, inner, outputs)
     expected_sizes = [inputs] + list(inner) + [outputs]
     for i, layer in enumerate(layers):
         assert layer.in_features == expected_sizes[i]

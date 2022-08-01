@@ -2,10 +2,12 @@
 LSTM Anomaly Detector based on reconstruction error density.
 
 References:
-    - Malhotra, Pankaj, et al. "Long short term memory networks for anomaly
-      detection in time series."
-    - DeepADoTS
-      https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_ad.py
+
+    [1] Malhotra, Pankaj, et al. "Long short term memory networks for anomaly
+        detection in time series."
+
+    [2] DeepADoTS
+        https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_ad.py
 
 """
 import math
@@ -29,10 +31,24 @@ class LSTM_AD(BaseDetector):
         self, window_size: int = 10, hidden_size: int = 32,
         threshold: float = 0.9, use_gpu: bool = False,
     ) -> None:
-        """
+        """LSTM anomaly detector. Learns to reconstruct the sample of the data.
+        At each time step the model generates predictions of `window_size`
+        future values. The score is computed as a probability of the overall
+        error coming from the distribution of errors learned during
+        the training.
 
-        :param window_size:
-        :param hidden_size:
+        Parameters
+        ----------
+        window_size
+            Number of consecutive values to generate at each time step.
+        hidden_size
+            Hidden size of the LSTM model.
+        threshold
+            Anomaly detection threshold. If validation data is provided
+            during the training it will be optimized to get
+            the best predictions.
+        use_gpu
+            Accelerated computation when GPU device is available.
         """
         super(LSTM_AD, self).__init__()
         self.model: Optional[_LSTM] = None
@@ -50,20 +66,34 @@ class LSTM_AD(BaseDetector):
         self,
         train_data: pd.DataFrame,
         validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
-        validation_steps: int = 10,
         epochs: int = 50,
         learning_rate: float = 1e-4,
         verbose: bool = False,
     ) -> None:
-        """
+        """Trains LSTM AD model to fit given data. The model is trained in
+        an unsupervised manner with minimizing MSE of reconstruction
+        as an objective.
 
-        :param train_data:
-        :param validation_data:
-        :param validation_steps:
-        :param epochs:
-        :param learning_rate:
-        :param verbose:
-        :return:
+        During the first execution a model is created. Multiple executions
+        are possible but input data should always have the same dimension.
+
+        Parameters
+        ----------
+        train_data
+            ``pd.DataFrame`` containing samples as rows. Features should
+            correspond to columns.
+        validation_data
+            ``pd.DataFrame`` with data to be used for threshold optimization.
+        epochs
+            Number of epochs to use during the training.
+        learning_rate
+            Learning rate for the optimizer.
+        verbose
+            Controls printing of progress messages.
+
+        Returns
+        -------
+        None
         """
         if len(train_data) > 5e3:
             warnings.warn(
@@ -84,8 +114,7 @@ class LSTM_AD(BaseDetector):
 
         if validation_data is not None:
             # Use validation data to compute optimal anomaly threshold.
-            self._optimize_prediction_threshold(
-                validation_data, validation_steps)
+            self._optimize_prediction_threshold(validation_data)
 
     def train_with_slices(
         self,
@@ -95,7 +124,35 @@ class LSTM_AD(BaseDetector):
         learning_rate: float = 1e-4,
         verbose: bool = False,
     ) -> None:
-        """Workaround for very long time series."""
+        """Workaround for very long time series. The original model is designed
+        to be trained on the entire provided data at once however it's not
+        possible for very long inputs and it's not optimal for training.
+
+        Trains LSTM AD model to fit given data. The model is trained in
+        an unsupervised manner with minimizing MSE of reconstruction
+        as an objective.
+
+        During the first execution a model is created. Multiple executions
+        are possible but input data should always have the same dimension.
+
+        Parameters
+        ----------
+        train_data
+            ``pd.DataFrame`` containing samples as rows. Features should
+            correspond to columns.
+        slice_len
+            Length of data slices generated from the original time series.
+        epochs
+            Number of epochs to use during the training.
+        learning_rate
+            Learning rate for the optimizer.
+        verbose
+            Controls printing of progress messages.
+
+        Returns
+        -------
+        None
+        """
         errors = None
         # Initialize model.
         self._d_size = train_data.shape[-1]
@@ -134,11 +191,22 @@ class LSTM_AD(BaseDetector):
 
     def predict(
             self, data: pd.DataFrame, raw_errors: bool = False) -> np.ndarray:
-        """Return anomaly scores for data points.
+        """Predict function returns mean reconstruction error for each
+        of the samples from `data`. If `raw_errors` is `True` errors are not
+        averaged and the output scores have same shape as input data.
 
-        :param data:
-        :param raw_errors:
-        :return:
+        Parameters
+        ----------
+        data
+            ``pd.DataFrame`` containing data samples.
+        raw_errors
+            Controls shape of the output.
+
+        Returns
+        -------
+        np.ndarray
+            Reconstruction error scores for the input data. Either averaged
+            per sample or raw.
         """
         self.model.eval()
         inputs, targets = self._transform_eval_data_target(data)
@@ -151,10 +219,18 @@ class LSTM_AD(BaseDetector):
         return scores
 
     def detect(self, data: pd.DataFrame) -> np.ndarray:
-        """Detect anomalous data points in the provided data.
+        """Returns list of points classified as anomalies based on the threshold
+        value.
 
-        :param data:
-        :return:
+        Parameters
+        ----------
+        data
+            Data points to make prediction about.
+
+        Returns
+        -------
+        np.ndarray
+            Labels marking anomalous data point.
         """
         scores = self.predict(data)
         return (scores < self._threshold).astype(np.int32)
@@ -177,7 +253,7 @@ class LSTM_AD(BaseDetector):
             hidden_size=self._hidden_size,
             device=self._device,
         )
-        self.model.double()
+        self.model.double()  # model and data should be same type
         self._error_dist = _ErrorDistribution(self._d_size, self._l_preds)
 
     def _to_tensor(self, array: np.ndarray) -> torch.Tensor:
@@ -229,15 +305,12 @@ class LSTM_AD(BaseDetector):
         return eval_data, eval_target
 
     def _optimize_prediction_threshold(
-        self,
-        validation_data: Tuple[pd.DataFrame, pd.Series],
-        steps: int,
-    ) -> None:
+            self, validation_data: Tuple[pd.DataFrame, pd.Series]) -> None:
         data, labels = validation_data
         scores = self.predict(data)
         best_f1 = 0
         best_threshold = 0
-        for threshold in np.linspace(np.min(scores), np.max(scores), steps):
+        for threshold in np.linspace(np.min(scores), np.max(scores), 300):
             anomalies = (scores < threshold).astype(np.int32)
             f1_score = sklearn.metrics.f1_score(labels, anomalies)
             if f1_score > best_f1:
@@ -279,6 +352,7 @@ class LSTM_AD(BaseDetector):
                 print(f"Epoch {epoch} loss: {loss.item()}")
 
     def _get_scores(self, data: pd.DataFrame, errors: np.ndarray) -> np.ndarray:
+        """Get simple prediction scores."""
         p = self._error_dist(errors)
         scores = np.zeros((len(data),))
         scores[self._l_preds:] = p
@@ -286,6 +360,7 @@ class LSTM_AD(BaseDetector):
 
     def _get_errors(
             self, outputs: torch.Tensor, targets: np.ndarray) -> np.ndarray:
+        """Get raw error scores."""
         errors = self._error_dist.get_errors(
             outputs.cpu().detach().numpy(), targets)
         errors = errors.reshape((errors.shape[0], self._l_preds * self._d_size))
@@ -305,6 +380,21 @@ class _LSTM(nn.Module):
         self, input_size: int, output_size: int, hidden_size: int,
         device: torch.device, batch_size: int = 1,
     ) -> None:
+        """LSTM module.
+
+        Parameters
+        ----------
+        input_size
+            Size of the input layer.
+        output_size
+            Size of the output layer.
+        hidden_size
+            Hidden size of the layer between LSTM layers.
+        device
+            Device to to use, ie. either CPU or GPU.
+        batch_size
+            Batch size to use.
+        """
         super().__init__()
         self._device = device
         self._d_size = input_size
@@ -320,6 +410,18 @@ class _LSTM(nn.Module):
         self.to(self._device)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Forward pass through the network.
+
+        Parameters
+        ----------
+        inputs
+            Input tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor.
+        """
         outputs = []
         h_t = torch.zeros(
             self.batch_size, self.hidden_size).double().to(self._device)
@@ -347,6 +449,19 @@ class _LSTM(nn.Module):
 class _ErrorDistribution:
 
     def __init__(self, n_dims: int, l_preds: int) -> None:
+        """Class representing an error distribution. As described in [1]
+        the LSTM AD prediction score is a probability of reconstruction
+        errors coming from the learned error distribution. This class is
+        responsible for fitting multivariate gaussian distribution to errors
+        computed from LSTM outputs.
+
+        Parameters
+        ----------
+        n_dims
+            Dimensionality of the input data.
+        l_preds
+            Number of predictions generated by LSTM.
+        """
         self._d_size: int = n_dims
         self._l_preds: int = l_preds
         self._dist: scipy.stats.multivariate_normal = None
@@ -354,6 +469,20 @@ class _ErrorDistribution:
         self.cov = None
 
     def __call__(self, errors: np.ndarray) -> np.ndarray:
+        """Returns negative log likelihood of the points coming from
+        the distribution.
+
+        Parameters
+        ----------
+        errors
+            Data points.
+
+        Returns
+        -------
+        np.ndarray
+            Corresponding negative log probabilities of the errors coming from
+            this distribution.
+        """
         return -scipy.stats.multivariate_normal.logpdf(
             errors,
             mean=self.means,
@@ -363,22 +492,33 @@ class _ErrorDistribution:
 
     def get_errors(
             self, output: np.ndarray, target: np.ndarray) -> np.ndarray:
-        # """Computes reconstruction error of a point x(t) over consecutive
-        # reconstructions. All self._l_preds reconstructions are needed to
-        # construct error vector hence only a range of outputs contribute
-        # to the result.
-        #
-        # Ex. outputs = [
-        #     [x2_1, x3_1, x4_1],
-        #     [x3_2, x4_2, x5_2],
-        #     [x4_3, x5_3, x6_3],
-        # ]
-        # Then error can be only computed for x4 using [x4_1, x4_2, x4_3].
-        #
-        # :param output:
-        # :param target:
-        # :return:
-        # """
+        """Computes reconstruction error of a point x(t) over consecutive
+        reconstructions. All self._l_preds reconstructions are needed to
+        construct error vector hence only a range of outputs contribute
+        to the result.
+
+        Ex. outputs = [
+            [x2_1, x3_1, x4_1],
+            [x3_2, x4_2, x5_2],
+            [x4_3, x5_3, x6_3],
+            [x5_4, x6_4, x7_4],
+        ]
+        targets = [x4, x5, x6]
+        Then error can be only computed for x4 using [x4_1, x4_2, x4_3],
+        x5 using [x5_2, x5_3, x5_4], etc.
+
+        Parameters
+        ----------
+        output
+            Outputs of the LSTM network containing predictions with the values.
+        target
+            Target values.
+
+        Returns
+        -------
+        np.ndarray
+            Matrix of errors of shape (time_steps, n_dims * l_preds).
+        """
         errors = [output[:, self._l_preds - 1:-1, :, 0]]
         for i in range(1, self._l_preds):
             errors += [output[:, self._l_preds - 1 - i:-1 - i, :, i]]
@@ -391,11 +531,20 @@ class _ErrorDistribution:
         return errors
 
     def fit(self, outputs: np.ndarray, targets: np.ndarray) -> None:
-        self._fit_error_distribution(outputs, targets)
+        """Fit the error distribution to the provided predictions.
 
-    def _fit_error_distribution(
-            self, outputs: np.ndarray, eval_targets: np.ndarray) -> None:
-        errors = self.get_errors(outputs, eval_targets)
+        Parameters
+        ----------
+        outputs
+            LSTM outputs.
+        targets
+            Targets.
+
+        Returns
+        -------
+        None
+        """
+        errors = self.get_errors(outputs, targets)
         self.fit_multivariate_gauss(errors)
 
     def fit_multivariate_gauss(self, sample: np.ndarray) -> None:
@@ -405,8 +554,14 @@ class _ErrorDistribution:
         Source:
           https://stackoverflow.com/questions/27230824/fit-multivariate-gaussian-distribution-to-a-given-dataset
 
-        :param sample:
-        :return:
+        Parameters
+        ----------
+        sample
+            Data points.
+
+        Returns
+        -------
+        None
         """
         mean = np.mean(sample, axis=0)
         cov = np.cov(sample, rowvar=False)

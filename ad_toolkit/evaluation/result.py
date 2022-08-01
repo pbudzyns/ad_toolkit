@@ -7,7 +7,7 @@ import sklearn.metrics
 @dataclasses.dataclass()
 class Result:
     """Binary classification results representation. Allows for easy
-    representation of basic metrics.
+    collection of basic metrics.
     """
     y_predicted: np.ndarray
     y_labels: np.ndarray

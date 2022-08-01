@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import torchvision
-# import tensorflow as tf
 
 from ad_toolkit.datasets.labeled_dataset import LabeledDataset
 
@@ -13,14 +12,18 @@ from ad_toolkit.datasets.labeled_dataset import LabeledDataset
 class MNIST(LabeledDataset):
 
     def __init__(self, anomaly_class: int = 0) -> None:
+        """Downloads MNIST dataset with samples of handwritten digits
+         using ``torchvision``.
+
+        Parameters
+        ----------
+        anomaly_class
+            A class to be treated as an outlier.
+        """
         super(MNIST, self).__init__()
         self._anomaly_class = anomaly_class
         self._data: Optional[Tuple[
             pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]] = None
-
-    @classmethod
-    def sample_size(cls) -> int:
-        return 784
 
     def load(self) -> None:
         self._load()
@@ -48,6 +51,17 @@ class MNIST(LabeledDataset):
 
     @classmethod
     def plot_sample(cls, sample: np.ndarray) -> None:
+        """Shows a sample as an image.
+
+        Parameters
+        ----------
+        sample
+            A data sample.
+
+        Returns
+        -------
+        None
+        """
         sample = sample.reshape((28, 28))
         plt.imshow(sample, cmap='gray_r')
         plt.show()

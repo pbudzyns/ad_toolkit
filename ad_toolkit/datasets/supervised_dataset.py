@@ -10,10 +10,16 @@ class SupervisedDataset(BaseDataset):
 
     def __init__(self, dataset: LabeledDataset, anomaly_class: Any = 1) -> None:
         """Dataset wrapper that filters out anomalous samples from
-        training set.
+        training set or includes a desired percentage of anomalies in the
+        training samples.
 
-        :param dataset:
-        :param anomaly_class:
+        Parameters
+        ----------
+        dataset
+            Dataset containing the data.
+        anomaly_class
+            Label corresponding to the anomaly class. Will be used to filter
+            out anomalies based on dataset labels.
         """
         super(SupervisedDataset, self).__init__()
         self._dataset = dataset
@@ -21,17 +27,19 @@ class SupervisedDataset(BaseDataset):
         self._anomaly_class = anomaly_class
 
     def load(self) -> None:
+        """Loads the data."""
         self._load()
 
     @property
     def data(self):
+        """Returns raw data."""
         if self._data is None:
             self._load()
         return self._data
 
     def _load(self) -> None:
         """Load the dataset."""
-        self._dataset._load()
+        self._dataset.load()
         self._data = self._dataset.data
 
     def get_train_samples(
@@ -44,9 +52,18 @@ class SupervisedDataset(BaseDataset):
         `anomaly_percentage` provided the set contains given percentage
         of anomalous samples. Otherwise, it consists of normal data only.
 
-        :param n_samples:
-        :param anomaly_percentage:
-        :return:
+        Parameters
+        ----------
+        n_samples
+            Number of samples to return.
+        anomaly_percentage
+            Percentage of anomalous samples to include in the training set.
+
+        Returns
+        -------
+        pd.DataFrame
+            Training samples either without anomalies or with requested
+            percentage of anomalous samples.
         """
         x_train, y_train, _, _ = self.data
         if anomaly_percentage is None:
@@ -61,13 +78,7 @@ class SupervisedDataset(BaseDataset):
         y_train: pd.DataFrame,
         n_samples: Optional[int] = None,
     ) -> pd.DataFrame:
-        """Create a dataset composed of only normal samples.
-
-        :param x_train:
-        :param y_train:
-        :param n_samples:
-        :return:
-        """
+        """Create a dataset composed of only normal samples."""
         normal_train = x_train.loc[y_train != self._anomaly_class]
         if n_samples is None or n_samples > len(normal_train):
             return normal_train
@@ -80,14 +91,7 @@ class SupervisedDataset(BaseDataset):
         n_samples: Optional[int],
         ap: float,
     ) -> pd.DataFrame:
-        """Create a dataset composed of normal and anomalous samples.
-
-        :param x_train:
-        :param y_train:
-        :param n_samples:
-        :param ap:
-        :return:
-        """
+        """Create a dataset composed of normal and anomalous samples."""
         normal_train = x_train[y_train != self._anomaly_class]
         anomaly_train = x_train[y_train == self._anomaly_class]
         if n_samples is None:
@@ -108,7 +112,14 @@ class SupervisedDataset(BaseDataset):
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """Returns test set containing samples and corresponding labels.
 
-        :param n_samples:
-        :return:
+        Parameters
+        ----------
+        n_samples
+            Number of test samples to return.
+
+        Returns
+        -------
+        Tuple[pd.DataFrame, pd.Series]
+            Training samples and corresponding labels.
         """
         return self._dataset.get_test_samples(n_samples=n_samples)

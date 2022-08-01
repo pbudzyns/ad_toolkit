@@ -2,10 +2,9 @@
 Variational auto-encoder with MCMC.
 
 References:
-    - Xu, Haowen, et al. "Unsupervised anomaly detection via variational
-      auto-encoder for seasonal kpis in web applications."
-    - Implementation from DeepADoTS
-     https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/donut.py
+
+    [1] Xu, Haowen, et al. "Unsupervised anomaly detection via variational
+        auto-encoder for seasonal kpis in web applications."
 
 """
 from typing import List, Optional, Tuple, Union
@@ -32,6 +31,17 @@ class Donut(BaseDetector):
         self, window_size: int = 120, latent_size: int = 10,
         layers: Union[List[int], Tuple[int]] = (100, 100),
     ) -> None:
+        """Donut - anomaly detection model.
+
+        Parameters
+        ----------
+        window_size
+            Window size describes the size of the model input.
+        latent_size
+            Latent size of the variational auto-encoder model.
+        layers
+            Sizes of the layers of the variational auto-encoder model.
+        """
         self._x_dim: int = window_size
         self._latent_size: int = latent_size
         self._layers: Union[List[int], Tuple[int]] = layers
@@ -41,7 +51,24 @@ class Donut(BaseDetector):
         self._session: Optional[tf.Session] = None
         self._model_counter = 0
 
-    def train(self, train_data: pd.DataFrame, epochs: int = 30):
+    def train(self, train_data: pd.DataFrame, epochs: int = 30) -> None:
+        """Train the Donut model with provided data. This model works only with
+        single parameters hence the data frame provided should have only single
+        column. Time stamps are required as an index and are not allowed
+        to be duplicated.
+
+        Parameters
+        ----------
+        train_data
+            ``pd.DataFrame`` containing samples as rows. Features should
+            correspond to columns.
+        epochs
+            Number of epochs to use during the training.
+
+        Returns
+        -------
+        None
+        """
         timestamp = np.array(train_data.index)
         values = train_data.values.squeeze()
         labels = np.zeros_like(values, dtype=np.int32)
@@ -69,6 +96,19 @@ class Donut(BaseDetector):
         self._session = session
 
     def predict(self, data: pd.DataFrame) -> np.ndarray:
+        """Returns prediction scores for the provided data.
+
+        Parameters
+        ----------
+        data
+            ``pd.DataFrame`` containing samples as rows. Features should
+            correspond to columns.
+
+        Returns
+        -------
+        np.ndarray
+            Prediction scores.
+        """
         prediction_scores = np.ones((len(data),)) * (-1)
         values = data.values.squeeze()
         values, _, _ = standardize_kpi(values, mean=self._mean, std=self._std)
@@ -80,32 +120,13 @@ class Donut(BaseDetector):
         prediction_scores[-len(scores):] = -np.exp(scores)
         return prediction_scores
 
-    def detect(self, data: pd.DataFrame) -> np.ndarray:
-        # TODO: implement detection, check in the paper how is it done
-        pass
-
     def _build_model_if_needed(self) -> Tuple[_Donut, tf.VariableScope]:
         if self._model is not None:
             return self._model
+
+        encoder_layers = self._build_layers(self._layers)
+        decoder_layers = self._build_layers(self._layers[::-1])
         with tf.variable_scope('model') as model_vs:
-            encoder_layers = [
-                layers.Dense(
-                    layer_size,
-                    kernel_regularizer=keras.regularizers.l2(0.001),
-                    activation=tf.nn.relu,
-                )
-                for layer_size
-                in self._layers
-            ]
-            decoder_layers = [
-                layers.Dense(
-                    layer_size,
-                    kernel_regularizer=keras.regularizers.l2(0.001),
-                    activation=tf.nn.relu,
-                )
-                for layer_size
-                in self._layers[::-1]
-            ]
             model = _Donut(
                 h_for_p_x=Sequential(encoder_layers),
                 h_for_q_z=Sequential(decoder_layers),
@@ -113,3 +134,13 @@ class Donut(BaseDetector):
                 z_dims=self._latent_size,
             )
         return model, model_vs
+
+    @classmethod
+    def _build_layers(
+        cls, layer_sizes: Union[List[int], Tuple[int]],
+    ) -> List[layers.Dense]:
+        return [layers.Dense(layer_size,
+                             kernel_regularizer=keras.regularizers.l2(0.001),
+                             activation=tf.nn.relu)
+                for layer_size
+                in layer_sizes]

@@ -5,8 +5,8 @@ from typing import List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import requests
-from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
 
 from ad_toolkit.datasets.labeled_dataset import LabeledDataset
 
@@ -22,7 +22,11 @@ class KddCup(LabeledDataset):
         Reference:
          - http://kdd.ics.uci.edu/databases/kddcup99/kddcup99.html
 
-        :param full_dataset:
+        Parameters
+        ----------
+        full_dataset
+            If `True` downloads full dataset which may take a while. Otherwise
+            downloads a shortened version with a part of the dataset.
         """
 
         super(KddCup, self).__init__()
@@ -33,6 +37,7 @@ class KddCup(LabeledDataset):
             self._gz_filename = "kddcup.data_10_percent.gz"
 
         url_root: str = "http://kdd.ics.uci.edu/databases/kddcup99/"
+
         self._names_filename: str = "kddcup.names"
         self._label_name: str = "status"
         self._data_url: str = url_root + self._gz_filename
@@ -40,6 +45,7 @@ class KddCup(LabeledDataset):
         self._data_file: Optional[pathlib.Path] = None
 
     def load(self) -> None:
+        """Downloads and prepares the dataset for use."""
         self._load()
 
     def _load(self) -> None:
@@ -54,10 +60,7 @@ class KddCup(LabeledDataset):
 
     def _load_data_from_url(self) -> Tuple[pd.DataFrame, List[str]]:
         """Uses temporal directory to download the data files and load them
-        into the memory.
-
-        :return:
-        """
+        into the memory."""
         with tempfile.TemporaryDirectory() as tempdir:
             data_filename, names_filename = self._download_dataset(tempdir)
             names, types = self._extract_names(names_filename)
@@ -69,11 +72,7 @@ class KddCup(LabeledDataset):
 
     def _mark_attacks(self, data: pd.DataFrame) -> None:
         """Simplify types of anomalous events as classifying specific types of
-        attacks is not in the main area of interest.
-
-        :param data:
-        :return:
-        """
+        attacks is not in the main area of interest."""
         new_labels = []
         for row in data[self._label_name]:
             if row != "normal":
@@ -83,12 +82,7 @@ class KddCup(LabeledDataset):
         data[self._label_name] = new_labels
 
     def _encode_categorical(self, data: pd.DataFrame, types: List[str]) -> None:
-        """Encodes symbolic variables into categorical values.
-
-        :param data:
-        :param types:
-        :return:
-        """
+        """Encodes symbolic variables into categorical values."""
         to_drop = []
         for i, (name, col) in enumerate(data.items()):
             if types[i] == "continuous":
@@ -110,11 +104,7 @@ class KddCup(LabeledDataset):
         self,
         names_filename: pathlib.Path,
     ) -> Tuple[List[str], List[str]]:
-        """Extracts column names and their types from the names file.
-
-        :param names_filename:
-        :return:
-        """
+        """Extracts column names and their types from the names file."""
         names = tuple(name.split(": ")
                       for name
                       in names_filename.read_text().split('\n')[1:-1])
@@ -126,11 +116,7 @@ class KddCup(LabeledDataset):
         self,
         tempdir: str,
     ) -> Tuple[pathlib.Path, pathlib.Path]:
-        """Downloads kdd cup dataset into the provided directory.
-
-        :param tempdir:
-        :return:
-        """
+        """Downloads kdd cup dataset into the provided directory."""
         dir_path = pathlib.Path(tempdir)
         data_filename = dir_path / self._gz_filename
         names_filename = dir_path / self._names_filename
@@ -141,12 +127,7 @@ class KddCup(LabeledDataset):
     @classmethod
     def _download_file(cls, data_filename: pathlib.Path, data_url: str) -> None:
         """Downloads content from the `data_url` into a file under
-        `data_filename`.
-
-        :param data_filename:
-        :param data_url:
-        :return:
-        """
+        `data_filename`."""
         with data_filename.open("wb") as f:
             r = requests.get(data_url)
             f.write(r.content)

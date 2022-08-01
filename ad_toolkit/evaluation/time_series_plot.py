@@ -7,6 +7,10 @@ import pandas as pd
 
 
 class TimeSeriesPlot:
+    """Time series plotter. Allows for easy visualization of time series
+    together with marked anomalous windows and detected anomalies."""
+
+    # Set of colors to use for anomaly markers.
     _anomaly_colors = (
         'red', 'magenta', 'green', 'navy', 'dodgerblue', 'orange', 'brown')
 
@@ -22,6 +26,31 @@ class TimeSeriesPlot:
         data_style_kwargs: Optional[Dict[str, Any]] = None,
         anomaly_style_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        """The plotting function.
+
+        Parameters
+        ----------
+        data
+            Time series data.
+        labels
+            Labels marking known anomalies.
+        anomalies
+            Dictionary with predictions made by detectors.
+        vertical_margin
+            Vertical margin of the plot.
+        show_legend
+            Controls legend appearance.
+        fig_size
+            Size of the final plot.
+        data_style_kwargs
+            Kwargs for styling time series plot.
+        anomaly_style_kwargs
+            Kwargs for styling vertical lines that marks detected anomalies.
+
+        Returns
+        -------
+        None
+        """
         ax = plt.gca()
         fig = plt.gcf()
 
@@ -46,9 +75,13 @@ class TimeSeriesPlot:
     def _plot_predicted_anomalies(
             cls, anomalies, labels, y_lim, anomaly_style_kwargs) -> None:
         style = {'ls': '-.', 'lw': 0.5, 'alpha': 0.1}
+
         if anomaly_style_kwargs is not None:
+            # Apply additional styling if provided.
             style.update(anomaly_style_kwargs)
+
         for i, (name, points) in enumerate(anomalies.items()):
+            # Plot vertical lines marking detected anomalies.
             anomalies_idx = labels.index[points.astype(bool)]
             color = cls._anomaly_colors[i % len(cls._anomaly_colors)]
             plt.vlines(
@@ -76,6 +109,7 @@ class TimeSeriesPlot:
 
     @classmethod
     def _plot_known_anomalies(cls, labels, y_lim):
+        # Makes shaded background areas as known anomaly ranges.
         anomalous_labels = labels[labels != 0].index
         plt.vlines(
             x=anomalous_labels,

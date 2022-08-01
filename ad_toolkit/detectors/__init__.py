@@ -17,7 +17,9 @@ __all__ = [
 ]
 
 try:
+    # Requires extra dependencies.
     from .donut_ad import Donut
     __all__ += ['Donut']
+
 except ImportError:
     pass

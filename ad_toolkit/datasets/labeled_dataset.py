@@ -7,6 +7,10 @@ from ad_toolkit.datasets.dataset import BaseDataset
 
 
 class LabeledDataset(BaseDataset, abc.ABC):
+    """Labeled dataset should handle dataset that contains samples
+    and corresponding labels. It is not recommended to use it together with
+    time series data as the order of samples will be shuffled.
+    """
 
     @abc.abstractmethod
     def load(self) -> None:
@@ -22,8 +26,15 @@ class LabeledDataset(BaseDataset, abc.ABC):
             self, n_samples: Optional[int] = None) -> pd.DataFrame:
         """Generate a set of `n_samples` samples for training.
 
-        :param n_samples: Number of samples to return.
-        :return: Samples
+        Parameters
+        ----------
+        n_samples
+            Number of samples to return.
+
+        Returns
+        -------
+        pd.DataFrame
+            Training samples.
         """
         x_train, _, _, _ = self.data
 
@@ -39,8 +50,15 @@ class LabeledDataset(BaseDataset, abc.ABC):
         """Generate a set of `n_samples` samples for testing where 50% are
         anomalous samples if possible.
 
-        :param n_samples: Number of samples to return.
-        :return: Samples and labels.
+        Parameters
+        ----------
+        n_samples
+            Number of samples to return.
+
+        Returns
+        -------
+        Tuple[pd.DataFrame, pd.Series]
+            Test samples and corresponding labels.
         """
         _, _, x_test, y_test = self.data
 

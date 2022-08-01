@@ -1,9 +1,8 @@
 from collections import defaultdict
 import json
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import urllib.request
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -21,7 +20,19 @@ class NabDataset(BaseDataset):
         self,
         dataset: str = "artificialWithAnomaly",
         file: str = "art_daily_jumpsup.csv",
-    ):
+    ) -> None:
+        """Downloads time series data contained in NAB Benchmark. The labeled
+        anomalous windows are transformed into labels.
+
+        To get a full list of datasets and files run `NabDataset.datasets()`.
+
+        Parameters
+        ----------
+        dataset
+            Dataset name from the NAB Repository.
+        file
+            File name from the NAB Repository.
+        """
         super(NabDataset, self).__init__()
         self._dataset: str = dataset
         self._file: str = file
@@ -29,7 +40,8 @@ class NabDataset(BaseDataset):
         self._all_labels: Optional[Dict] = None
 
     @classmethod
-    def datasets(cls):
+    def datasets(cls) -> Dict[str, List[str]]:
+        """Returns a dictionary containing datasets and their files."""
         if cls._datasets is None:
             cls._load_datasets()
         return cls._datasets
@@ -70,6 +82,18 @@ class NabDataset(BaseDataset):
     def get_train_samples(
         self, standardize: bool = True,
     ) -> Tuple[pd.DataFrame, pd.Series]:
+        """Get train samples and their labels.
+
+        Parameters
+        ----------
+        standardize
+            Whether to standardize the data.
+
+        Returns
+        -------
+        Tuple[pd.DataFrame, pd.Series]
+            Time series and labels marking anomalous windows.
+        """
         x, y = self.data
         data = self._standardize_data(x) if standardize else x
         return data, y
@@ -83,6 +107,12 @@ class NabDataset(BaseDataset):
         return standardised
 
     def get_test_samples(self) -> Tuple[pd.DataFrame, pd.Series]:
+        """Returns raw time series.
+
+        Returns
+        -------
+        Tuple[pd.DataFrame, pd.Series]
+        """
         return self.data
 
     def plot(
@@ -90,26 +120,28 @@ class NabDataset(BaseDataset):
         vertical_margin: int = 10, show_legend: bool = False,
         anomaly_style_kwargs: Optional[Dict[str, Any]] = None,
     ) -> None:
+        """Plot time series, mark anomalous windows and visualize detected
+        anomalies if provided.
+
+        Parameters
+        ----------
+        anomalies
+            Dictionary with detector names as keys and anomaly labels returned
+            by them as values.
+        vertical_margin
+            Vertical margin of the plot.
+        show_legend
+            Controls legend appearance.
+        anomaly_style_kwargs
+            Kwargs to style vertical lines representing anomalies.
+
+        Returns
+        -------
+        None
+        """
         x, labels = self.data
         TimeSeriesPlot.plot(
             x, labels=labels, anomalies=anomalies,
             vertical_margin=vertical_margin, show_legend=show_legend,
             anomaly_style_kwargs=anomaly_style_kwargs,
         )
-
-
-if __name__ == '__main__':
-    nab = NabDataset()
-    _, y = nab.data
-    anomalies = np.zeros_like(y)
-    anomalies2 = anomalies.copy()
-    step = int(len(y) / 10)
-    anomalies[2*step] = 1
-    anomalies[9*step] = 1
-    anomalies[8*step] = 1
-    anomalies2[4 * step] = 1
-    anomalies2[5 * step] = 1
-    anomalies2[7 * step] = 1
-
-    nab.plot(anomalies={'anomalies': anomalies, 'anomalies2': anomalies2})
-    plt.show()
