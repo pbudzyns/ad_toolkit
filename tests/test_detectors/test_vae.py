@@ -1,21 +1,36 @@
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 
 from ad_toolkit.detectors import VariationalAutoEncoder
 
 datasets = (
-    pd.DataFrame(np.random.random((10, 1))),
-    pd.DataFrame(np.random.random((10, 10))),
-    pd.DataFrame(np.random.random((10, 200))),
+    pd.DataFrame(np.random.random((100, 1))),
+    pd.DataFrame(np.random.random((100, 10))),
+    pd.DataFrame(np.random.random((100, 200))),
     pd.DataFrame(np.random.random((200, 5))),
 )
 
 
 @pytest.mark.parametrize("data", datasets)
-@pytest.mark.parametrize("use_gpu", (False, True))
-def test_train_vae(data, use_gpu):
-    vae = VariationalAutoEncoder(window_size=3, latent_size=10, use_gpu=use_gpu)
+@pytest.mark.parametrize("window_size", (1, 5, 10))
+@pytest.mark.parametrize("layers", ((50, 20), (50,)))
+@pytest.mark.parametrize("latent_size", (10, 20, 50))
+def test_train_vae(data, window_size, layers, latent_size):
+    vae = VariationalAutoEncoder(window_size=window_size, layers=layers,
+                                 latent_size=latent_size, use_gpu=False)
+    vae.train(data, epochs=2)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("window_size", (1, 5, 10))
+@pytest.mark.parametrize("layers", ((50, 20), (50,)))
+@pytest.mark.parametrize("latent_size", (10, 20, 50))
+def test_train_vae_gpu(data, window_size, layers, latent_size):
+    vae = VariationalAutoEncoder(window_size=window_size, layers=layers,
+                                 latent_size=latent_size, use_gpu=True)
     vae.train(data, epochs=2)
 
 
@@ -45,9 +60,21 @@ def test_build_custom_network_auto_encoder(layers):
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 3, 5))
 @pytest.mark.parametrize("latent_size", (10, 50, 100))
-@pytest.mark.parametrize("use_gpu", (False, True))
-def test_train_predict_vae(data, window_size, latent_size, use_gpu):
-    vae = VariationalAutoEncoder(window_size=window_size, use_gpu=use_gpu,
+def test_train_predict_vae(data, window_size, latent_size):
+    vae = VariationalAutoEncoder(window_size=window_size, use_gpu=False,
+                                 latent_size=latent_size)
+    vae.train(data, epochs=2)
+
+    p = vae.predict(data)
+    assert len(p) == len(data)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("window_size", (1, 3, 5))
+@pytest.mark.parametrize("latent_size", (10, 50, 100))
+def test_train_predict_vae_gpu(data, window_size, latent_size):
+    vae = VariationalAutoEncoder(window_size=window_size, use_gpu=True,
                                  latent_size=latent_size)
     vae.train(data, epochs=2)
 
@@ -59,6 +86,17 @@ def test_train_predict_vae(data, window_size, latent_size, use_gpu):
 @pytest.mark.parametrize("window_size", (1, 3, 5))
 def test_train_predict_raw_errors_vae(data, window_size):
     vae = VariationalAutoEncoder(window_size=window_size)
+    vae.train(data, epochs=2)
+
+    p = vae.predict(data, raw_errors=True)
+    assert p.shape == data.shape
+
+
+@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("window_size", (1, 3, 5))
+def test_train_predict_raw_errors_vae_gpu(data, window_size):
+    vae = VariationalAutoEncoder(window_size=window_size, use_gpu=True)
     vae.train(data, epochs=2)
 
     p = vae.predict(data, raw_errors=True)

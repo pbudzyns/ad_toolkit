@@ -12,6 +12,12 @@ def isolate_tf_session():
         yield
 
 
+@pytest.yield_fixture(autouse=False)
+def use_gpu():
+    with tf.device('/gpu:0'):
+        yield
+
+
 datasets = (
     pd.DataFrame(np.random.random((500, 1))),
     pd.DataFrame(np.random.random((900, 1))),
@@ -25,6 +31,14 @@ def test_train_donut(data, layers):
     donut.train(data, epochs=3)
 
 
+@pytest.mark.skipif(not tf.test.is_gpu_available(), reason='no cuda device')
+@pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("layers", ((300, 200), (100, 50), (100, 100)))
+def test_train_donut_gpu(data, layers, use_gpu):
+    donut = Donut(layers=layers)
+    donut.train(data, epochs=3)
+
+
 @pytest.mark.parametrize("data", datasets)
 def test_train_predict_donut(data):
     donut = Donut()
@@ -33,7 +47,16 @@ def test_train_predict_donut(data):
     assert len(p) == len(data)
 
 
-@pytest.mark.skip
+@pytest.mark.skipif(not tf.test.is_gpu_available(), reason='no cuda device')
+@pytest.mark.parametrize("data", datasets)
+def test_train_predict_donut_gpu(data, use_gpu):
+    donut = Donut()
+    donut.train(data, epochs=3)
+    p = donut.predict(data)
+    assert len(p) == len(data)
+
+
+@pytest.mark.skip('not implemented')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 3))
 def test_train_detect_donut(data, window_size):
