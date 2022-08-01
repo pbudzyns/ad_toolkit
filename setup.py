@@ -38,7 +38,7 @@ REQUIREMENTS['test'] += REQUIREMENTS['donut']
 setup(
     name='ad-toolkit',
     version='v0.0.1',
-    description='Deep Learning Anomaly detection algorithms',
+    description='Deep Learning Algorithms for anomaly detection',
     maintainer='Pawel Budzynski',
     maintainer_email='pawel.budzynski19@gmail.com',
     long_description=LONG_DESCRIPTION,
