@@ -6,13 +6,13 @@ import tensorflow as tf
 from ad_toolkit.detectors import Donut
 
 
-@pytest.yield_fixture(autouse=True, scope='function')
+@pytest.fixture(autouse=True, scope='function')
 def isolate_tf_session():
     with tf.Graph().as_default():
         yield
 
 
-@pytest.yield_fixture(autouse=False)
+@pytest.fixture
 def use_gpu():
     with tf.device('/gpu:0'):
         yield
