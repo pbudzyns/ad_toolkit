@@ -4,12 +4,8 @@
 .ipynb_checkpoints/
 # build
 .egg-info/
-sops_anomaly.egg-info/
+ad_toolkit.egg-info/
+dist/
 
 venv/
 *.pyc
-
-# Data files
-data/
-results/
-notebooks/esa

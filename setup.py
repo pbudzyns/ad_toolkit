@@ -10,8 +10,8 @@ with (HERE / 'README.md').open('rt') as fh:
 REQUIREMENTS: dict = {
     'core': [
         'dataclasses;python_version<"3.7"',
-        'numpy',
         'matplotlib',
+        'numpy',
         'pandas',
         'requests',
         'scipy',
@@ -37,13 +37,14 @@ REQUIREMENTS['test'] += REQUIREMENTS['donut']
 
 setup(
     name='ad-toolkit',
-    version='v1.0.0-beta',
+    version='1.0.0b0',
     description='Deep Learning Algorithms for anomaly detection',
-    maintainer='Pawel Budzynski',
-    maintainer_email='pawel.budzynski19@gmail.com',
+    author='Pawel Budzynski',
+    author_email='pawel.budzynski19@gmail.com',
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     license='MIT',
+    url='https://github.com/pbudzyns/ad_toolkit',
     packages=find_packages(),
     python_requires='~=3.6',
     classifiers=[
