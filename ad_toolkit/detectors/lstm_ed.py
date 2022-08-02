@@ -3,8 +3,9 @@ Long-Short Term Memory based Encoder-Decoder anomaly detector.
 
 References:
 
-    [1] Malhotra, Pankaj, et al. "LSTM-based encoder-decoder for multi-sensor
-        anomaly detection."
+    [1] Malhotra, P., Ramakrishnan, A., Anand, G., Vig, L., Agarwal, P.,
+        & Shroff, G. (2016). LSTM-based encoder-decoder for multi-sensor
+        anomaly detection.
 
     [2] DeepADoTS
         https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_enc_dec_axl.py
@@ -91,10 +92,11 @@ class LSTM_ED(BaseDetector):
         Parameters
         ----------
         train_data
-            ``pd.DataFrame`` containing samples as rows. Features should
+            ``pandas.DataFrame`` containing samples as rows. Features should
             correspond to columns.
         validation_data
-            ``pd.DataFrame`` with data to be used for threshold optimization.
+            ``pandas.DataFrame`` with data to be used for threshold
+            optimization.
         epochs
             Number of epochs to use during the training.
         learning_rate
@@ -134,7 +136,7 @@ class LSTM_ED(BaseDetector):
         Parameters
         ----------
         data
-            ``pd.DataFrame`` containing data samples.
+            ``pandas.DataFrame`` containing data samples.
         batch_size
             Batch size to use.
         raw_errors
@@ -239,10 +241,6 @@ class LSTM_ED(BaseDetector):
 
         Source:
           https://stackoverflow.com/questions/27230824/fit-multivariate-gaussian-distribution-to-a-given-dataset
-
-
-        :param sample:
-        :return:
         """
         error_vectors = self._compute_errors(data_loader)
 

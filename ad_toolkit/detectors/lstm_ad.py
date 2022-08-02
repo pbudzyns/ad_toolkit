@@ -3,8 +3,8 @@ LSTM Anomaly Detector based on reconstruction error density.
 
 References:
 
-    [1] Malhotra, Pankaj, et al. "Long short term memory networks for anomaly
-        detection in time series."
+    [1] Malhotra, P., Vig, L., Shroff, G., & Agarwal, P. (2015, April). Long
+        short term memory networks for anomaly detection in time series.
 
     [2] DeepADoTS
         https://github.com/KDD-OpenSource/DeepADoTS/blob/master/src/algorithms/lstm_ad.py
@@ -80,10 +80,11 @@ class LSTM_AD(BaseDetector):
         Parameters
         ----------
         train_data
-            ``pd.DataFrame`` containing samples as rows. Features should
+            ``pandas.DataFrame`` containing samples as rows. Features should
             correspond to columns.
         validation_data
-            ``pd.DataFrame`` with data to be used for threshold optimization.
+            ``pandas.DataFrame`` with data to be used for threshold
+            optimization.
         epochs
             Number of epochs to use during the training.
         learning_rate
@@ -138,7 +139,7 @@ class LSTM_AD(BaseDetector):
         Parameters
         ----------
         train_data
-            ``pd.DataFrame`` containing samples as rows. Features should
+            ``pandas.DataFrame`` containing samples as rows. Features should
             correspond to columns.
         slice_len
             Length of data slices generated from the original time series.
@@ -198,7 +199,7 @@ class LSTM_AD(BaseDetector):
         Parameters
         ----------
         data
-            ``pd.DataFrame`` containing data samples.
+            ``pandas.DataFrame`` containing data samples.
         raw_errors
             Controls shape of the output.
 

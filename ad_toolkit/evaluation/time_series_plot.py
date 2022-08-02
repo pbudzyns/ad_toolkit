@@ -74,7 +74,10 @@ class TimeSeriesPlot:
     @classmethod
     def _plot_predicted_anomalies(
             cls, anomalies, labels, y_lim, anomaly_style_kwargs) -> None:
-        style = {'ls': '-.', 'lw': 0.5, 'alpha': 0.1}
+        style = {
+            'ls': '-.', 'lw': 0.5, 'alpha': 0.1,
+            'ymin': y_lim[0], 'ymax': y_lim[1],
+        }
 
         if anomaly_style_kwargs is not None:
             # Apply additional styling if provided.
@@ -86,8 +89,6 @@ class TimeSeriesPlot:
             color = cls._anomaly_colors[i % len(cls._anomaly_colors)]
             plt.vlines(
                 x=anomalies_idx,
-                ymin=y_lim[0],
-                ymax=y_lim[1],
                 colors=color,
                 label=name,
                 **style,

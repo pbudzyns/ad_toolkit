@@ -3,8 +3,8 @@ Auto-encoder anomaly detector.
 
 References:
 
-    [1] "Variational auto-encoder based anomaly detection using reconstruction
-        probability" J.An, S.Cho.
+    [1] An, J., & Cho, S. (2015). Variational autoencoder based anomaly
+        detection using reconstruction probability.
 
 """
 from typing import List, Optional, Tuple, Union
@@ -72,7 +72,7 @@ class AutoEncoder(BaseDetector):
         Parameters
         ----------
         train_data
-            ``pd.DataFrame`` containing samples as rows. Features should
+            ``pandas.DataFrame`` containing samples as rows. Features should
             correspond to columns.
         epochs
             Number of epochs to use during the training.
@@ -117,7 +117,7 @@ class AutoEncoder(BaseDetector):
         Parameters
         ----------
         data
-            ``pd.DataFrame`` containing data samples.
+            ``pandas.DataFrame`` containing data samples.
         batch_size
             Batch size to use during prediction.
         raw_errors

@@ -3,8 +3,9 @@ Variational auto-encoder with MCMC.
 
 References:
 
-    [1] Xu, Haowen, et al. "Unsupervised anomaly detection via variational
-        auto-encoder for seasonal kpis in web applications."
+    [1] Xu, H., Chen, W., Zhao, N., Li, Z., Bu, J., Li, Z., ... & Qiao, H.
+        (2018, April). Unsupervised anomaly detection via variational
+        auto-encoder for seasonal kpis in web applications.
 
 """
 from typing import List, Optional, Tuple, Union
@@ -60,7 +61,7 @@ class Donut(BaseDetector):
         Parameters
         ----------
         train_data
-            ``pd.DataFrame`` containing samples as rows. Features should
+            ``pandas.DataFrame`` containing samples as rows. Features should
             correspond to columns.
         epochs
             Number of epochs to use during the training.
@@ -90,7 +91,6 @@ class Donut(BaseDetector):
             trainer.fit(train_values, labels, missing, mean, std,
                         valid_portion=0.25)
 
-        self._model = (model, model_vs)
         self._mean = mean
         self._std = std
         self._session = session
@@ -101,7 +101,7 @@ class Donut(BaseDetector):
         Parameters
         ----------
         data
-            ``pd.DataFrame`` containing samples as rows. Features should
+            ``pandas.DataFrame`` containing samples as rows. Features should
             correspond to columns.
 
         Returns
@@ -133,6 +133,7 @@ class Donut(BaseDetector):
                 x_dims=self._x_dim,
                 z_dims=self._latent_size,
             )
+        self._model = (model, model_vs)
         return model, model_vs
 
     @classmethod

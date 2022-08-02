@@ -81,7 +81,7 @@ class AutoEncoderTSS(BaseDetector):
         Parameters
         ----------
         train_data
-            ``pd.DataFrame`` containing samples as rows. Features should
+            ``pandas.DataFrame`` containing samples as rows. Features should
             correspond to columns.
         epochs
             Number of epochs to use during the training.
@@ -100,7 +100,7 @@ class AutoEncoderTSS(BaseDetector):
         Parameters
         ----------
         data
-            ``pd.DataFrame`` containing data samples.
+            ``pandas.DataFrame`` containing data samples.
 
         Returns
         -------
@@ -131,7 +131,7 @@ class AutoEncoderTSS(BaseDetector):
         Parameters
         ----------
         data
-            ``pd.DataFrame`` containing data samples.
+            ``pandas.DataFrame`` containing data samples.
         threshold
             A percent of average distance to use for anomaly detection.
 

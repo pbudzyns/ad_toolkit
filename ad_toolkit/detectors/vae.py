@@ -3,8 +3,8 @@ Variational auto-encoder anomaly detector.
 
 References:
 
-    [1] An, Jinwon, and Sungzoon Cho. "Variational auto-encoder based anomaly
-        detection using reconstruction probability."
+    [1] An, J., & Cho, S. (2015). Variational autoencoder based anomaly
+        detection using reconstruction probability.
 
 """
 from typing import List, Optional, Tuple, Union
@@ -79,7 +79,7 @@ class VariationalAutoEncoder(BaseDetector):
         Parameters
         ----------
         train_data
-            ``pd.DataFrame`` containing samples as rows. Features should
+            ``pandas.DataFrame`` containing samples as rows. Features should
             correspond to columns.
         epochs
             Number of epochs to use during the training.
@@ -120,7 +120,7 @@ class VariationalAutoEncoder(BaseDetector):
         Parameters
         ----------
         data
-            ``pd.DataFrame`` containing data samples.
+            ``pandas.DataFrame`` containing data samples.
         raw_errors
             Controls shape of the output.
 
@@ -156,7 +156,7 @@ class VariationalAutoEncoder(BaseDetector):
         return all_data_tensors
 
     def _simple_error(self, x, mu, log_var):
-        """Computes reconstruction probability as described in [1]."""
+        """Computes reconstruction probability as described in ref. [1]."""
         score = 0
         for i in range(self._l_samples):
             z = self.model.reparametrize(mu, log_var)
@@ -233,7 +233,7 @@ class _VAE(nn.Module):
         layers: Union[List[int], Tuple[int]],
         latent_size: int,
     ) -> None:
-        """Variational Auto-Encoder implementation with ELBO training.
+        """Variational Auto-Encoder implementation with ELBO.
 
         Parameters
         ----------
@@ -251,7 +251,7 @@ class _VAE(nn.Module):
         # Creates Decoder module from given sizes.
         self.decoder: nn.Module = self._get_module(
             latent_size, list(reversed(layers)), input_size)
-        # Normal prior fixed in this implementation. Possible support
+        # Normal prior is fixed in this implementation. Possible support
         # for other distributions in the future.
         self.prior: torch.distributions.Distribution = (
             torch.distributions.Normal(0, 1))
