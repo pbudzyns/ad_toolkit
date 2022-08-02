@@ -12,7 +12,7 @@ class TimeSeriesPlot:
 
     # Set of colors to use for anomaly markers.
     _anomaly_colors = (
-        'red', 'magenta', 'green', 'navy', 'dodgerblue', 'orange', 'brown')
+        'red', 'navy', 'green', 'orange', 'dodgerblue', 'brown', 'magenta')
 
     @classmethod
     def plot(
@@ -25,7 +25,8 @@ class TimeSeriesPlot:
         fig_size: Tuple[int, int] = (10, 5),
         data_style_kwargs: Optional[Dict[str, Any]] = None,
         anomaly_style_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
+        legend_style_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[plt.Figure, plt.Axes]:
         """The plotting function.
 
         Parameters
@@ -46,13 +47,14 @@ class TimeSeriesPlot:
             Kwargs for styling time series plot.
         anomaly_style_kwargs
             Kwargs for styling vertical lines that marks detected anomalies.
+        legend_style_kwargs
+            Kwargs for styling legend.
 
         Returns
         -------
-        None
+        Tuple[plt.Figure, plt.Axes]
         """
-        ax = plt.gca()
-        fig = plt.gcf()
+        fig, ax = plt.subplots()
 
         x_lim, y_lim = cls._get_x_y_lim(vertical_margin, data)
         if labels is not None:
@@ -69,7 +71,12 @@ class TimeSeriesPlot:
         ax.set_xlim(x_lim)
         fig.set_size_inches(*fig_size)
         if show_legend:
-            plt.legend()
+            legend_style = {}
+            if legend_style_kwargs is not None:
+                legend_style.update(legend_style_kwargs)
+            plt.legend(**legend_style)
+
+        return fig, ax
 
     @classmethod
     def _plot_predicted_anomalies(

@@ -46,9 +46,9 @@ nab.plot()
 ```python
 from ad_toolkit.detectors import AutoEncoder
 
-model = AutoEncoder(window_size=120, layers=(64,32,16), latent_size=8)
+x_train, _ = nab.get_train_samples()
 
-x_train = nab.get_train_samples()
+model = AutoEncoder(window_size=100, layers=(64,32,16), latent_size=8)
 model.train(x_train, epochs=20, learning_rate=1e-4)
 
 x, y = nab.get_test_samples()
@@ -68,13 +68,13 @@ nab.plot(anomalies={'ae': labels})
 
 # Sample output:
 # ... Result(accuracy=0.93,
-# ...	 (tp, fp, tn, fn)=(126, 21, 3608, 277),
-# ...	 precision=0.86,
-# ...	 recall=0.31,
-# ...	 f1=0.46,
-# ...	 roc_auc=0.65,
-# ...	 y_pred%=0.036458333333333336,
-# ...	 y_label%=0.09995039682539683,
+# ...	(tp, fp, tn, fn)=(135, 0, 3629, 268),
+# ...	precision=1.0,
+# ...	recall=0.33,
+# ...	f1=0.5,
+# ...	roc_auc=0.67,
+# ...	y_pred%=0.033482142857142856,
+# ...	y_label%=0.09995039682539683,
 # ... )
 ```
 ![Time series with anomalies](docs/nab_anomalies.png?raw=true
