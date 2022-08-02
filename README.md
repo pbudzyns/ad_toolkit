@@ -20,7 +20,7 @@ $ pip install git+https://github.com/pbudzyns/ad_toolkit.git
 ```
 
 #### Extras
-`donut` model requires extra dependencies and works only with older
+`donut` model requires extra (deprecated) dependencies and works only with older
 versions of `python` that supports `tensorflow <= 1.15`. To install extra
 dependencies use
 ```commandline
@@ -149,4 +149,10 @@ A set of datasets coming from NAB Benchmark for anomaly detection.
 ```commandline
 $ pip install .[test]
 $ pytest .
+```
+
+## Lint
+```commandline
+$ pip install .[lint]
+$ flake8
 ```
