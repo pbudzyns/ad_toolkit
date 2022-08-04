@@ -84,6 +84,16 @@ nab.plot(anomalies={'ae': labels})
 
 ### Detectors
 
+#### AutoEncoder with Time-Series Segmentation (``ad_toolkit.detectors.AutoEncoderTSS``)
+Change-point detector searching for points of significant change of behaviour.
+
+__References:__
+1. _Lee, W. H., Ortiz, J., Ko, B., & Lee, R. (2018). Time series segmentation
+   through automatic feature learning._
+
+2. _Boumghar, R., Venkataswaran, A., Brown, H., & Crespo, X. Behaviour-based
+   anomaly detection in spacecraft using deep learning._
+
 #### AutoEncoder (``ad_toolkit.detectors.AutoEncoder``)
 Detector based on auto-encoder model. Returns prediction score based on
 reconstruction error. This model is capable of working with multivariate time
@@ -148,7 +158,7 @@ A set of datasets coming from NAB Benchmark for anomaly detection.
 ## Testing
 ```commandline
 $ pip install .[test]
-$ pytest .
+$ pytest --cov=ad_toolkit .
 ```
 
 ## Lint

@@ -3,11 +3,11 @@ Time-series segmentation with auto-encoder.
 
 References:
 
-    [1] Lee, Wei-Han, et al. "Time series segmentation through automatic feature
-        learning."
+    [1] Lee, W. H., Ortiz, J., Ko, B., & Lee, R. (2018). Time series
+        segmentation through automatic feature learning.
 
-    [2] Boumghar, Redouane, et al. "Behaviour-based anomaly detection in
-        spacecraft using deep learning."
+    [2] Boumghar, R., Venkataswaran, A., Brown, H., & Crespo, X. Behaviour-based
+        anomaly detection in spacecraft using deep learning.
 
     [3] https://gitlab.com/librespacefoundation/polaris/betsi
 

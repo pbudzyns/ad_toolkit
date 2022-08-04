@@ -7,5 +7,7 @@
 ad_toolkit.egg-info/
 dist/
 
+.coverage
+
 venv/
 *.pyc
