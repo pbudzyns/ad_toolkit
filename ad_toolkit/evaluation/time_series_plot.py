@@ -61,7 +61,7 @@ class TimeSeriesPlot:
             cls._plot_known_anomalies(labels, y_lim)
         if anomalies is not None:
             cls._plot_predicted_anomalies(
-                anomalies, labels, y_lim, anomaly_style_kwargs)
+                anomalies, data.index, y_lim, anomaly_style_kwargs)
 
         data_style = {'lw': 1, 'ls': '-'}
         if data_style_kwargs is not None:
@@ -80,7 +80,10 @@ class TimeSeriesPlot:
 
     @classmethod
     def _plot_predicted_anomalies(
-            cls, anomalies, labels, y_lim, anomaly_style_kwargs) -> None:
+        cls, anomalies: Dict[str, np.ndarray], index: pd.Index,
+        y_lim: Tuple[Number, Number],
+        anomaly_style_kwargs: Optional[Dict[str, Any]],
+    ) -> None:
         style = {
             'ls': '-.', 'lw': 0.5, 'alpha': 0.1,
             'ymin': y_lim[0], 'ymax': y_lim[1],
@@ -92,7 +95,7 @@ class TimeSeriesPlot:
 
         for i, (name, points) in enumerate(anomalies.items()):
             # Plot vertical lines marking detected anomalies.
-            anomalies_idx = labels.index[points.astype(bool)]
+            anomalies_idx = index[points.astype(bool)]
             color = cls._anomaly_colors[i % len(cls._anomaly_colors)]
             plt.vlines(
                 x=anomalies_idx,
@@ -116,7 +119,8 @@ class TimeSeriesPlot:
         return x_lim, y_lim
 
     @classmethod
-    def _plot_known_anomalies(cls, labels, y_lim):
+    def _plot_known_anomalies(
+            cls, labels: pd.Series, y_lim: Tuple[Number, Number]) -> None:
         # Makes shaded background areas as known anomaly ranges.
         anomalous_labels = labels[labels != 0].index
         plt.vlines(
