@@ -30,6 +30,7 @@ REQUIREMENTS: dict = {
     ],
     'test': [
         'pytest',
+        'pytest-cov',
     ],
 }
 # Ensure tests run for all models.
