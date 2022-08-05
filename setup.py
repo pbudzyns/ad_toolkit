@@ -29,8 +29,8 @@ REQUIREMENTS: dict = {
         'flake8',
     ],
     'test': [
+        'coverage',
         'pytest',
-        'pytest-cov',
     ],
 }
 # Ensure tests run for all models.
