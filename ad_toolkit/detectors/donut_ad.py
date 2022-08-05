@@ -54,7 +54,7 @@ class Donut(BaseDetector):
 
     def train(
         self, train_data: pd.DataFrame, labels: Optional[np.ndarray] = None,
-        epochs: int = 30,
+        epochs: int = 30, valid_portion: float = 0.1,
     ) -> None:
         """Train the Donut model with provided data. This model works only with
         single parameters hence the data frame provided should have only single
@@ -70,6 +70,8 @@ class Donut(BaseDetector):
             Optional labels with marked anomalous timestamps.
         epochs
             Number of epochs to use during the training.
+        valid_portion
+            Data portion to use for validation.
 
         Returns
         -------
@@ -95,7 +97,7 @@ class Donut(BaseDetector):
         )
         with session.as_default():
             trainer.fit(train_values, labels, missing, mean, std,
-                        valid_portion=0.25)
+                        valid_portion=valid_portion)
 
         self._mean = mean
         self._std = std

@@ -19,28 +19,30 @@ def use_gpu():
 
 
 datasets = (
-    pd.DataFrame(np.random.random((500, 1))),
-    pd.DataFrame(np.random.random((900, 1))),
+    pd.DataFrame(np.random.random((1500, 1))),
+    pd.DataFrame(np.random.random((5000, 1))),
 )
 
 
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("include_labels", (False, True))
 @pytest.mark.parametrize("layers", ((300, 200), (100, 50), (100, 100)))
-def test_train_donut(data, include_labels, layers):
+@pytest.mark.parametrize("valid_portion", (0.1, 0.2))
+def test_train_donut(data, include_labels, layers, valid_portion):
     donut = Donut(layers=layers)
     labels = np.random.randint(2, size=len(data)) if include_labels else None
-    donut.train(data, labels=labels, epochs=3)
+    donut.train(data, labels=labels, epochs=3, valid_portion=valid_portion)
 
 
 @pytest.mark.skipif(not tf.test.is_gpu_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("include_labels", (False, True))
 @pytest.mark.parametrize("layers", ((300, 200), (100, 50), (100, 100)))
-def test_train_donut_gpu(data, include_labels, layers, use_gpu):
+@pytest.mark.parametrize("valid_portion", (0.1, 0.2))
+def test_train_donut_gpu(data, include_labels, layers, valid_portion, use_gpu):
     donut = Donut(layers=layers)
     labels = np.random.randint(2, size=len(data)) if include_labels else None
-    donut.train(data, labels=labels, epochs=3)
+    donut.train(data, labels=labels, epochs=3, valid_portion=valid_portion)
 
 
 @pytest.mark.parametrize("data", datasets)
