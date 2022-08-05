@@ -43,14 +43,16 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install .[test]
     - name: Test with pytest
-      run: |
-        pytest --cov=ad_toolkit tests/test_datasets/
-        python -m coverage_badge -o coverage.svg
-    - name: Archive coverage badge
-      uses: actions/upload-artifact@v3
+      run: pytest --cov=ad_toolkit tests/test_datasets/
+    - name: Generate Badge SVG
+      run: echo "COV_BADGE=$(python -m coverage_badge)" >> $GITHUB_ENV
+    - name: Create Coverage Badge
+      uses: schneegans/dynamic-badges-action@v1.4.0
       with:
-        name: coverage-badge
-        path: coverage.svg
+        auth: ${{ secrets.GIST_COVERAGE }}
+        gistID: 46a4b56814f345bdc80420ad8bda204f
+        filename: coverage.json 
+        logoSvg: ${{ env.COV_BADGE }}
 
   lint:
     runs-on: ubuntu-latest
