@@ -44,7 +44,7 @@ jobs:
         python -m pip install .[test]
     - name: Test with pytest
       run: |
-        coverage run -m pytest --cov=ad_toolkit tests/test_datasets/
+        coverage run -m pytest tests/test_datasets/
         export COV_TOTAL=$(coverage report | tail -n 1 | awk '{print $NF}')
         echo "COV_PERCENT=$COV_TOTAL" >> $GITHUB_ENV
     - name: Create Coverage Badge
