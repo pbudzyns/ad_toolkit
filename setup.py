@@ -29,7 +29,6 @@ REQUIREMENTS: dict = {
         'flake8',
     ],
     'test': [
-        'coverage-badge',
         'pytest',
         'pytest-cov',
     ],
