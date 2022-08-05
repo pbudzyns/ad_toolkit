@@ -4,3 +4,10 @@ requires = [
     "setuptools",
     "wheel",
 ]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::FutureWarning",
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]

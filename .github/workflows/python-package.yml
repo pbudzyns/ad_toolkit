@@ -45,6 +45,7 @@ jobs:
     - name: Test with pytest
       run: |
         coverage run -m pytest .
+        coverage report -m
         export COV_TOTAL=$(coverage report | tail -n 1 | awk '{print $NF}')
         echo "COV_PERCENT=$COV_TOTAL" >> $GITHUB_ENV
     - name: Create Coverage Badge
