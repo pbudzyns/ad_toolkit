@@ -1,4 +1,5 @@
-![Build status](https://github.com/pbudzyns/ad_toolkit/actions/workflows/python-package.yml/badge.svg)
+![CI status](https://github.com/pbudzyns/ad_toolkit/actions/workflows/python-package.yml/badge.svg)
+![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/pbudzyns/46a4b56814f345bdc80420ad8bda204f/raw/coverage.json)
 # Deep Learning Algorithms for Anomaly Detection
 
 A collection of anomaly detection algorithms and relevant datasets with a common
