@@ -45,7 +45,7 @@ jobs:
     - name: Test with pytest
       run: pytest --cov=ad_toolkit tests/test_datasets/
     - name: Generate Badge SVG
-      run: echo "COV_BADGE='$(python -m coverage_badge)'" >> $GITHUB_ENV
+      run: echo "COV_BADGE='$(python -m coverage_badge | tr '\n' ' ')'" >> $GITHUB_ENV
     - name: Create Coverage Badge
       uses: schneegans/dynamic-badges-action@v1.4.0
       with:
