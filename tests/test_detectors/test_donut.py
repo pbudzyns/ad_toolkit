@@ -25,18 +25,22 @@ datasets = (
 
 
 @pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("include_labels", (False, True))
 @pytest.mark.parametrize("layers", ((300, 200), (100, 50), (100, 100)))
-def test_train_donut(data, layers):
+def test_train_donut(data, include_labels, layers):
     donut = Donut(layers=layers)
-    donut.train(data, epochs=3)
+    labels = np.random.randint(2, size=len(data)) if include_labels else None
+    donut.train(data, labels=labels, epochs=3)
 
 
 @pytest.mark.skipif(not tf.test.is_gpu_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
+@pytest.mark.parametrize("include_labels", (False, True))
 @pytest.mark.parametrize("layers", ((300, 200), (100, 50), (100, 100)))
-def test_train_donut_gpu(data, layers, use_gpu):
+def test_train_donut_gpu(data, include_labels, layers, use_gpu):
     donut = Donut(layers=layers)
-    donut.train(data, epochs=3)
+    labels = np.random.randint(2, size=len(data)) if include_labels else None
+    donut.train(data, labels=labels, epochs=3)
 
 
 @pytest.mark.parametrize("data", datasets)

@@ -52,7 +52,10 @@ class Donut(BaseDetector):
         self._session: Optional[tf.Session] = None
         self._model_counter = 0
 
-    def train(self, train_data: pd.DataFrame, epochs: int = 30) -> None:
+    def train(
+        self, train_data: pd.DataFrame, labels: Optional[np.ndarray] = None,
+        epochs: int = 30,
+    ) -> None:
         """Train the Donut model with provided data. This model works only with
         single parameters hence the data frame provided should have only single
         column. Time stamps are required as an index and are not allowed
@@ -63,6 +66,8 @@ class Donut(BaseDetector):
         train_data
             ``pandas.DataFrame`` containing samples as rows. Features should
             correspond to columns.
+        labels
+            Optional labels with marked anomalous timestamps.
         epochs
             Number of epochs to use during the training.
 
@@ -72,7 +77,8 @@ class Donut(BaseDetector):
         """
         timestamp = np.array(train_data.index)
         values = train_data.values.squeeze()
-        labels = np.zeros_like(values, dtype=np.int32)
+        if labels is None:
+            labels = np.zeros_like(values, dtype=np.int32)
         timestamp, missing, (values, labels) = complete_timestamp(
             timestamp, (values, labels))
         train_values, mean, std = standardize_kpi(
