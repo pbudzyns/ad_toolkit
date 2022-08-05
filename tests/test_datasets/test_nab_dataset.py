@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import pandas as pd
 import pytest
 
@@ -56,3 +57,11 @@ def test_nab_download_all_datasets():
             assert isinstance(x, pd.DataFrame)
             assert isinstance(y, pd.Series)
             assert len(x) == len(y)
+
+
+def test_plot_nab(nab):
+    fig, ax = nab.plot()
+    assert isinstance(fig, plt.Figure)
+    assert isinstance(ax, plt.Axes)
+
+    plt.close(fig)

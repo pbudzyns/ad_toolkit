@@ -23,6 +23,16 @@ def test_train_auto_encoder(data, window_size, layers, latent_size):
     ae.train(data, epochs=2, verbose=False)
 
 
+def test_retrain_ae_doesnt_replace_model():
+    data = pd.DataFrame(np.random.random((1000, 10)))
+    ae = AutoEncoder()
+    ae.train(data)
+    prev_model = ae.model
+    ae.train(data)
+
+    assert ae.model == prev_model
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 3, 5, 10))

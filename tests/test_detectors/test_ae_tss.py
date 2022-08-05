@@ -19,6 +19,16 @@ def test_train_ae_tss(data):
     ae.train(data, epochs=2)
 
 
+def test_retrain_ae_doesnt_replace_model():
+    data = pd.DataFrame(np.random.random((1000, 10)))
+    ae = AutoEncoderTSS(window_size=3)
+    ae.train(data)
+    prev_model = ae.model
+    ae.train(data)
+
+    assert ae.model == prev_model
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 def test_train_ae_tss_gpu(data):

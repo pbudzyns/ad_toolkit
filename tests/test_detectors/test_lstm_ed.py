@@ -22,6 +22,16 @@ def test_train_lstm_ed(data, hidden_size, sequence_len, stride):
     lstm.train(data, epochs=2)
 
 
+def test_retrain_lstm_doesnt_replace_model():
+    data = pd.DataFrame(np.random.random((100, 1)))
+    lstm = LSTM_ED()
+    lstm.train(data)
+    prev_model = lstm.model
+    lstm.train(data)
+
+    assert lstm.model == prev_model
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("hidden_size", (32, 16))

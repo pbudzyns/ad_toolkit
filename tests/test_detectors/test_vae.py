@@ -23,6 +23,16 @@ def test_train_vae(data, window_size, layers, latent_size):
     vae.train(data, epochs=2)
 
 
+def test_retrain_vae_doesnt_replace_model():
+    data = pd.DataFrame(np.random.random((1000, 10)))
+    vae = VariationalAutoEncoder()
+    vae.train(data)
+    prev_model = vae.model
+    vae.train(data)
+
+    assert vae.model == prev_model
+
+
 @pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 5, 10))

@@ -3,6 +3,7 @@ import json
 from typing import Any, Dict, List, Optional, Tuple
 import urllib.request
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -119,7 +120,7 @@ class NabDataset(BaseDataset):
         self, anomalies: Optional[Dict[str, np.ndarray]] = None,
         vertical_margin: int = 10, show_legend: bool = False,
         anomaly_style_kwargs: Optional[Dict[str, Any]] = None,
-    ) -> None:
+    ) -> Tuple[plt.Figure, plt.Axes]:
         """Plot time series, mark anomalous windows and visualize detected
         anomalies if provided.
 
@@ -140,8 +141,10 @@ class NabDataset(BaseDataset):
         None
         """
         x, labels = self.data
-        TimeSeriesPlot.plot(
+        fig, ax = TimeSeriesPlot.plot(
             x, labels=labels, anomalies=anomalies,
             vertical_margin=vertical_margin, show_legend=show_legend,
             anomaly_style_kwargs=anomaly_style_kwargs,
         )
+
+        return fig, ax
