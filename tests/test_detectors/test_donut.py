@@ -1,13 +1,14 @@
 import numpy as np
 import pandas as pd
 import pytest
-import tensorflow as tf
 
-# Donut model requires extra dependencies which do not work with
+# Donut model requires extra dependencies that do not work with
 # recent python versions. To enable testing on newer versions
 # of python conditional import is used.
 donut_ad = pytest.importorskip('ad_toolkit.detectors.donut_ad')
 Donut = donut_ad.Donut
+
+import tensorflow as tf  # noqa: E402
 
 
 @pytest.fixture(autouse=True, scope='function')

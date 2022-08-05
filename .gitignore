@@ -6,6 +6,7 @@
 .egg-info/
 ad_toolkit.egg-info/
 dist/
+build/
 
 .coverage
 coverage.svg
