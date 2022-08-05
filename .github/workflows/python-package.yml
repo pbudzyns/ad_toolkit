@@ -44,7 +44,13 @@ jobs:
         python -m pip install .[test]
     - name: Test with pytest
       run: |
-        pytest --cov=ad_toolkit .
+        pytest --cov=ad_toolkit tests/test_datasets/
+        python -m coverage_badge -o coverage.svg
+    - name: Archive coverage badge
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-badge
+        path: coverage.svg
 
   lint:
     runs-on: ubuntu-latest
