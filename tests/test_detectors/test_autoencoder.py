@@ -23,7 +23,7 @@ def test_train_auto_encoder(data, window_size, layers, latent_size):
     ae.train(data, epochs=2, verbose=False)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 3, 5, 10))
 @pytest.mark.parametrize("latent_size", (10, 20, 50))
@@ -67,7 +67,7 @@ def test_train_predict_auto_encoder(data, window_size):
     assert len(p) == len(data)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 3, 5))
 def test_train_predict_auto_encoder_gpu(data, window_size):
@@ -88,7 +88,7 @@ def test_train_predict_raw_errors_auto_encoder(data, window_size):
     assert p.shape == data.shape
 
 
-@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 3, 5))
 def test_train_predict_raw_errors_auto_encoder_gpu(data, window_size):

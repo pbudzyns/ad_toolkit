@@ -22,7 +22,7 @@ def test_train_lstm(data, window_size, hidden_size):
     lstm.train(data, epochs=2)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 5, 10))
 @pytest.mark.parametrize("hidden_size", (10, 20, 30))
@@ -43,7 +43,7 @@ def test_train_lstm_with_slices(window_size, hidden_size):
     assert len(scores) == len(data)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("window_size", (5, 10))
 @pytest.mark.parametrize("hidden_size", (10, 20))
 def test_train_lstm_with_slices_gpu(window_size, hidden_size):
@@ -74,7 +74,7 @@ def test_train_predict_lstm(data):
     assert len(p) == len(data)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 def test_train_predict_lstm_gpu(data):
     lstm = LSTM_AD(use_gpu=True)
@@ -94,7 +94,7 @@ def test_train_predict_raw_errors_lstm(data, window_size):
     assert p.shape == data.shape
 
 
-@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 @pytest.mark.parametrize("window_size", (1, 5, 10))
 def test_train_predict_raw_errors_lstm_gpu(data, window_size):
@@ -115,7 +115,7 @@ def test_train_detect_lstm(data):
     assert all(pp in (0, 1) for pp in p)
 
 
-@pytest.mark.skipif(not torch.cuda.is_available, reason='no cuda device')
+@pytest.mark.skipif(not torch.cuda.is_available(), reason='no cuda device')
 @pytest.mark.parametrize("data", datasets)
 def test_train_detect_lstm_gpu(data):
     lstm = LSTM_AD(use_gpu=True)

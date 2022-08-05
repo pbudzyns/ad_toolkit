@@ -31,6 +31,7 @@ class AutoEncoderTSS(BaseDetector):
         window_size: int,
         layers: Union[List[int], Tuple[int]] = (500, 200),
         latent_size: int = 10,
+        use_gpu: bool = False,
     ) -> None:
         """Auto-encoder based time series segmentation for anomaly detection.
 
@@ -40,17 +41,23 @@ class AutoEncoderTSS(BaseDetector):
             Size of the window if multiple time steps should be used as
             an input. If `window_size` > 1 then samples from consecutive
             time steps will be concatenated together.
-        latent_size
-            Size of the latent space for auto-encoder model.
         layers
             Sizes of hidden layer of auto-encoder model.
+        latent_size
+            Size of the latent space for auto-encoder model.
+        use_gpu
+            Accelerated computation when GPU device is available.
         """
         super(AutoEncoderTSS, self).__init__()
         self.ae = AutoEncoder(
-            window_size=window_size, layers=layers, latent_size=latent_size)
+            window_size=window_size, layers=layers, latent_size=latent_size,
+            use_gpu=use_gpu,
+        )
         self.model: Optional[nn.Module] = None
         self._window_size: int = window_size
         self._latent_size: int = latent_size
+        self._device: torch.device = torch.device(
+            'cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
         self.l2_norm: Callable[[np.ndarray], float] = (
             functools.partial(np.linalg.norm, ord=2, axis=1))
 
@@ -113,8 +120,9 @@ class AutoEncoderTSS(BaseDetector):
         self.ae.model.eval()
         with torch.no_grad():
             for sample in all_data_tensors:
+                sample = sample.to(self._device)
                 encoded = self.ae.model.encoder(sample)
-                encoded_values.append(encoded.detach().numpy())
+                encoded_values.append(encoded.cpu().detach().numpy())
         encoded_values = np.array(encoded_values)
 
         distances = [0] * self._window_size
