@@ -29,7 +29,7 @@ REQUIREMENTS: dict = {
         'flake8',
     ],
     'test': [
-        'coverage',
+        'coverage[toml]',
         'pytest',
     ],
 }

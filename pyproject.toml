@@ -7,7 +7,15 @@ requires = [
 
 [tool.pytest.ini_options]
 filterwarnings = [
+    # Ignore deprecated tensorflow and 3rd party.
     "ignore::FutureWarning",
     "ignore::DeprecationWarning",
     "ignore::UserWarning",
 ]
+
+[tool.coverage.run]
+branch = true
+source = ["ad_toolkit"]
+
+[tool.coverage.report]
+show_missing = true

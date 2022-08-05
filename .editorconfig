@@ -18,3 +18,8 @@ indent_size = 4
 max_line_length = 80
 indent_size = 2
 indent_style = space
+
+[*.toml]
+max_line_length = 80
+indent_size = 4
+indent_style = space

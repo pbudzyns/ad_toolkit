@@ -1,5 +1,7 @@
 ![CI status](https://github.com/pbudzyns/ad_toolkit/actions/workflows/python-package.yml/badge.svg)
 ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/pbudzyns/46a4b56814f345bdc80420ad8bda204f/raw/coverage.json)
+![Licence](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/pbudzyns/9315c025fb9e5bb6afe874a219d74fc2/raw/licence.json)
+![Version](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/pbudzyns/6f89659da7879f763fa9f44310496ba8/raw/version.json)
 # Deep Learning Algorithms for Anomaly Detection
 
 A collection of anomaly detection algorithms and relevant datasets with a common
@@ -159,7 +161,7 @@ A set of datasets coming from NAB Benchmark for anomaly detection.
 ## Testing
 ```commandline
 $ pip install .[test]
-$ pytest --cov=ad_toolkit .
+$ coverage run -m pytest .
 ```
 
 ## Lint
