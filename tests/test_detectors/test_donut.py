@@ -3,7 +3,11 @@ import pandas as pd
 import pytest
 import tensorflow as tf
 
-from ad_toolkit.detectors import Donut
+# Donut model requires extra dependencies which do not work with
+# recent python versions. To enable testing on newer versions
+# of python conditional import is used.
+donut_ad = pytest.importorskip('ad_toolkit.detectors.donut_ad')
+Donut = donut_ad.Donut
 
 
 @pytest.fixture(autouse=True, scope='function')

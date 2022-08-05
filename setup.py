@@ -33,8 +33,8 @@ REQUIREMENTS: dict = {
         'pytest',
     ],
 }
-# Ensure tests run for all models.
-REQUIREMENTS['test'] += REQUIREMENTS['donut']
+# Test requirements for running deprecated dependencies.
+REQUIREMENTS['test36'] = REQUIREMENTS['test'] + REQUIREMENTS['donut']
 
 setup(
     name='ad-toolkit',
