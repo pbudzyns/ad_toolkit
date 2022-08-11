@@ -150,13 +150,13 @@ A wrapper class for semi-supervised learning. Capable of returning training sets
 with anomalous rows filtered out or limited to a requested percentage.
 
 #### MNIST (``ad_toolkit.datasets.MNIST``)
-Collection of handwritten digits.
+Collection of handwritten digits. http://yann.lecun.com/exdb/mnist/
 
 #### KDD Cup Dataset (``ad_toolkit.datasets.KddCup``)
-A dataset from competition task to build a network intrusion detector.
+A dataset from competition task to build a network intrusion detector. https://archive.ics.uci.edu/ml/datasets/kdd+cup+1999+data
 
 #### NAB Dataset (``ad_toolkit.datasets.NabDataset``)
-A set of datasets coming from NAB Benchmark for anomaly detection.
+A set of datasets coming from NAB Benchmark for anomaly detection. https://github.com/numenta/NAB
 
 ## Testing
 ```commandline
