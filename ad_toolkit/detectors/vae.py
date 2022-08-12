@@ -259,6 +259,7 @@ class _VAE(nn.Module):
         self.layer_mu: nn.Module = nn.Linear(latent_size, latent_size)
         self.layer_sigma: nn.Module = nn.Linear(latent_size, latent_size)
         self.decoder_input: nn.Module = nn.Linear(latent_size, latent_size)
+        self.latent_size: int = latent_size
 
     @classmethod
     def _get_module(cls, input_size, layers, output_size) -> nn.Module:
@@ -308,6 +309,6 @@ class _VAE(nn.Module):
         return total_loss
 
     def sample(self) -> np.ndarray:
-        z = torch.randn(self._latent_size)
+        z = torch.randn(self.latent_size)
         smpl = self.decode(z)
         return smpl.detach().numpy()
