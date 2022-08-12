@@ -154,19 +154,20 @@ class LSTM_ED(BaseDetector):
 
         scores = []
         self.model.eval()
-        for inputs in test_data_loader:
-            inputs = inputs.float().to(self._device)
-            outputs = self.model(inputs)
-            error = F.l1_loss(outputs, inputs, reduction='none')
-            error = error.view(-1, data.shape[1]).cpu().detach().numpy()
-            if raw_errors:
-                error = error.reshape(
-                    inputs.size(0), self._sequence_len * self._n_dims)
-                scores.append(error)
-            else:
-                score = -self._dist(error)
-                scores.append(score.reshape(inputs.size(0), self._sequence_len))
-            del inputs, outputs
+        with torch.no_grad():
+            for inputs in test_data_loader:
+                inputs = inputs.float().to(self._device)
+                outputs = self.model(inputs)
+                error = F.l1_loss(outputs, inputs, reduction='none')
+                error = error.view(-1, data.shape[1]).cpu().detach().numpy()
+                if raw_errors:
+                    error = error.reshape(
+                        inputs.size(0), self._sequence_len * self._n_dims)
+                    scores.append(error)
+                else:
+                    score = -self._dist(error)
+                    scores.append(score.reshape(inputs.size(0), self._sequence_len))
+                del inputs, outputs
 
         scores = np.concatenate(scores)
         if raw_errors:
