@@ -12,7 +12,7 @@ class TimeSeriesPlot:
 
     # Set of colors to use for anomaly markers.
     _anomaly_colors = (
-        'red', 'navy', 'green', 'orange', 'dodgerblue', 'brown', 'magenta')
+        'red', 'navy', 'green', 'brown', 'dodgerblue', 'orange', 'magenta')
 
     @classmethod
     def plot(
