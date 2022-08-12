@@ -35,7 +35,7 @@ $ pip install "ad_toolkit[donut] @ git+https://github.com/pbudzyns/ad_toolkit.gi
 ```
 
 ## Example
-
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/pbudzyns/ad_toolkit/blob/master/docs/example.ipynb)
 #### Loading dataset
 ```python
 from ad_toolkit.datasets import NabDataset
