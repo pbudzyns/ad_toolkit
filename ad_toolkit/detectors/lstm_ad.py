@@ -443,9 +443,6 @@ class _LSTM(nn.Module):
         return outputs.view(
             inputs.size(0), inputs.size(1), self._d_size, self._l_preds)
 
-    def __call__(self, inputs: torch.Tensor) -> torch.Tensor:
-        return self.forward(inputs)
-
 
 class _ErrorDistribution:
 

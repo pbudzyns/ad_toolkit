@@ -137,11 +137,12 @@ class AutoEncoder(BaseDetector):
         with torch.no_grad():
             for batch in data_loader:
                 batch = batch.to(self._device)
-                rec = self.model.forward(batch)
+                rec = self.model(batch)
                 errors = F.mse_loss(rec, batch, reduction='none')
                 if not raw_errors:
                     errors = errors.mean(1)
                 scores.append(errors.cpu().numpy())
+                del batch, rec
 
         if raw_errors:
             results = np.zeros((len(data), self._input_size))
@@ -181,11 +182,12 @@ class AutoEncoder(BaseDetector):
         for batch in train_data_loader:
             optimizer.zero_grad()
             batch = batch.to(self._device)
-            reconstructed = self.model.forward(batch)
+            reconstructed = self.model(batch)
             loss = F.mse_loss(reconstructed, batch)
             epoch_loss += loss.item()
             loss.backward()
             optimizer.step()
+            del batch, reconstructed
 
         return epoch_loss / len(train_data_loader)
 
@@ -196,9 +198,10 @@ class AutoEncoder(BaseDetector):
         with torch.no_grad():
             for batch in valid_data_loader:
                 batch = batch.to(self._device)
-                reconstructed = self.model.forward(batch)
+                reconstructed = self.model(batch)
                 loss = F.mse_loss(reconstructed, batch)
                 epoch_loss += loss.item()
+                del batch, reconstructed
 
         return epoch_loss / len(valid_data_loader)
 

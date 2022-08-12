@@ -156,16 +156,17 @@ class LSTM_ED(BaseDetector):
         self.model.eval()
         for inputs in test_data_loader:
             inputs = inputs.float().to(self._device)
-            outputs = self.model.forward(inputs)
+            outputs = self.model(inputs)
             error = F.l1_loss(outputs, inputs, reduction='none')
             error = error.view(-1, data.shape[1]).cpu().detach().numpy()
             if raw_errors:
                 error = error.reshape(
                     inputs.size(0), self._sequence_len * self._n_dims)
                 scores.append(error)
-                continue
-            score = -self._dist(error)
-            scores.append(score.reshape(inputs.size(0), self._sequence_len))
+            else:
+                score = -self._dist(error)
+                scores.append(score.reshape(inputs.size(0), self._sequence_len))
+            del inputs, outputs
 
         scores = np.concatenate(scores)
         if raw_errors:
@@ -226,11 +227,12 @@ class LSTM_ED(BaseDetector):
             for inputs in train_data_loader:
                 inputs = inputs.float().to(self._device)
                 optimizer.zero_grad()
-                output = self.model.forward(inputs)
+                output = self.model(inputs)
                 loss = F.mse_loss(output, inputs, reduction='sum')
                 epoch_loss += loss.item() / len(inputs)
                 loss.backward()
                 optimizer.step()
+                del inputs, output
             if verbose:
                 print(f"Epoch {epoch} loss: "
                       f"{epoch_loss / len(train_data_loader)}")
@@ -260,10 +262,11 @@ class LSTM_ED(BaseDetector):
         with torch.no_grad():
             for inputs in data_loader:
                 inputs = inputs.float().to(self._device)
-                output = self.model.forward(inputs)
+                output = self.model(inputs)
                 error = F.l1_loss(output, inputs, reduction='none')
                 error_vectors += list(
                     error.view(-1, self._n_dims).cpu().detach().numpy())
+                del inputs, output
         return error_vectors
 
     def _init_model_if_needed(self) -> None:

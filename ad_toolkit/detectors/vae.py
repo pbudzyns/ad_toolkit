@@ -142,6 +142,7 @@ class VariationalAutoEncoder(BaseDetector):
                 else:
                     score = self._simple_error(x, mu, log_var)
                 scores.append(score)
+                del x, mu, log_var
 
         if raw_errors:
             results = np.zeros(data.shape)
@@ -191,11 +192,12 @@ class VariationalAutoEncoder(BaseDetector):
         for batch in train_data_loader:
             optimizer.zero_grad()
             batch = batch.to(self._device)
-            model_outputs = self.model.forward(batch)
+            model_outputs = self.model(batch)
             loss = self.model.loss_function(model_outputs)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
+            del batch, model_outputs
         return total_loss / len(train_data_loader)
 
     def _validate_model(self, valid_data_loader: DataLoader) -> float:
@@ -204,10 +206,10 @@ class VariationalAutoEncoder(BaseDetector):
         with torch.no_grad():
             for batch in valid_data_loader:
                 batch = batch.to(self._device)
-                model_outputs = self.model.forward(batch)
+                model_outputs = self.model(batch)
                 loss = self.model.loss_function(model_outputs)
                 total_loss += loss.item()
-
+                del batch, model_outputs
         return total_loss / len(valid_data_loader)
 
     def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
