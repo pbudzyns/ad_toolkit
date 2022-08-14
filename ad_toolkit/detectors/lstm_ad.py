@@ -51,7 +51,7 @@ class LSTM_AD(BaseDetector):
             Accelerated computation when GPU device is available.
         """
         super(LSTM_AD, self).__init__()
-        self.model: Optional[_LSTM] = None
+        self.model: Optional["_LSTM"] = None
         self._threshold: float = threshold
         self._hidden_size: int = hidden_size
         # Model output dimensions (l, d)

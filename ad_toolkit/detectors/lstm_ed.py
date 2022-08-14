@@ -63,7 +63,7 @@ class LSTM_ED(BaseDetector):
         """
 
         super(LSTM_ED, self).__init__()
-        self.model: Optional[nn.Module] = None
+        self.model: Optional["_LSTMEncoderDecoder"] = None
         self._error_dist: Optional[scipy.stats.multivariate_normal] = None
         self._n_dims: int = 0
         self._sequence_len: int = sequence_len

@@ -57,7 +57,7 @@ class VariationalAutoEncoder(BaseDetector):
             Accelerated computation when GPU device is available.
         """
         super(VariationalAutoEncoder, self).__init__()
-        self.model: Optional[nn.Module] = None
+        self.model: Optional["_VAE"] = None
         self._input_size: Optional[int] = None
         self._window_size: int = window_size
         self._latent_size: int = latent_size
@@ -253,10 +253,6 @@ class _VAE(nn.Module):
         # Creates Decoder module from given sizes.
         self.decoder: nn.Module = self._get_module(
             latent_size, list(reversed(layers)), input_size)
-        # Normal prior is fixed in this implementation. Possible support
-        # for other distributions in the future.
-        self.prior: torch.distributions.Distribution = (
-            torch.distributions.Normal(0, 1))
 
         self.layer_mu: nn.Module = nn.Linear(latent_size, latent_size)
         self.layer_sigma: nn.Module = nn.Linear(latent_size, latent_size)

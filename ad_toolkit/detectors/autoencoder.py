@@ -50,7 +50,7 @@ class AutoEncoder(BaseDetector):
         use_gpu
             Accelerated computation when GPU device is available.
         """
-        self.model: Optional[nn.Module] = None
+        self.model: Optional["_AEModel"] = None
         self._input_size: Optional[int] = None
         self._window_size: int = window_size
         self._latent_size: int = latent_size
